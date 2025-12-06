@@ -107,12 +107,16 @@ function ISSimpleShop:create()
 	self.itemList.borderColor = {r=0.6, g=0.6, b=0.6, a=1}
 	self.itemList.borderWidth = 2
 	self.itemList.itemheight = 40  -- 设置每个列表项的高度
+	self.itemList.drawBorder = true  -- 确保绘制边框
 	
 	-- 初始化物品数据并填充分类
 	self:initItemsAndCategories()
 	
 	-- 设置列表项渲染函数
 	function self.itemList:doDrawItem(y, item, alt)
+		-- 设置剪切区域，确保内容不会超出列表边界
+		self:setStencilRect(0, 0, self.width, self.height)
+		
 		-- 绘制项目背景边框 - 更明显的边框
 		self:drawRectBorder(0, y, self:getWidth(), self.itemheight, 3, 0.5, 0.5, 0.5, 0.8)
 		
@@ -140,6 +144,9 @@ function ISSimpleShop:create()
 			local categoryText = getText("IGUI_ItemCat_" .. item.item.category)
 			self:drawText(categoryText, self:getWidth() - 200, textY, 0.7, 0.7, 0.7, 0.7, UIFont.Small)
 		end
+		
+		-- 清除剪切区域
+		self:clearStencilRect()
 		
 		return y + self.itemheight
 	end

@@ -71,18 +71,7 @@ local function showUpgradeScreen(playerNum)
 	end
 end
 
--- **************************************************************************************
--- 当按键按下时触发
--- **************************************************************************************
-SimpleShop.onKeyPressed = function(key)
-	if key == getCore():getKey("OpenSimpleShop") then
-		local player = getPlayer();
-		if player:isAlive() then
-			-- 显示商店UI
-			showUpgradeScreen(SimpleShop.getCurrentPlayerIndexNum());
-		end
-	end
-end
+
 
 -- **************************************************************************************
 -- 填充世界对象上下文菜单
@@ -92,9 +81,15 @@ SimpleShop.doWorldContextMenu = function(playerNum, context, worldobjects)
 	-- 检查玩家是否存活
 	if player:isAlive() then
 		-- 添加商店选项到上下文菜单，使用国际化文本
-		context:addOption(getText("UI_SimpleShop_OpenShop"), nil, function()
+		local option = context:addOption(getText("UI_SimpleShop_OpenShop"), nil, function()
 			showUpgradeScreen(playerNum);
 		end);
+		-- 为选项添加图标
+		local iconTexture = getTexture("media/ui/menu_icon.png")
+		if iconTexture and option then
+			option.iconTexture = iconTexture
+			option.icon = nil 
+		end
 	end
 end
 
@@ -106,9 +101,15 @@ SimpleShop.doInventoryContextMenu = function(playerNum, context, items)
 	-- 检查玩家是否存活
 	if player:isAlive() then
 		-- 添加商店选项到上下文菜单，使用国际化文本
-		context:addOption(getText("UI_SimpleShop_OpenShop"), nil, function()
+		local option = context:addOption(getText("UI_SimpleShop_OpenShop"), nil, function()
 			showUpgradeScreen(playerNum);
 		end);
+		-- 为选项添加图标
+		local iconTexture = getTexture("media/ui/menu_icon.png")
+		if iconTexture and option then
+			option.iconTexture = iconTexture
+			option.icon = nil 
+		end
 	end
 end
 
@@ -145,8 +146,6 @@ SimpleShop.init = function()
 	-- 读取本地配置文件
 	SimpleShop.LoadSettings(); 
 	SimpleShop.InitPlayer();
-	-- 监听键盘按键
-	Events.OnKeyPressed.Add(SimpleShop.onKeyPressed);
 	-- 注册上下文菜单事件
 	Events.OnFillInventoryObjectContextMenu.Add(SimpleShop.doInventoryContextMenu);
 	Events.OnFillWorldObjectContextMenu.Add(SimpleShop.doWorldContextMenu);
