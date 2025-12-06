@@ -17,6 +17,10 @@ function ISSimpleShop:render()
 		self.moneyLabel.name = getText("UI_SimpleShop_Money") .. ": " .. self.char:getModData().playerMoney;
 	end
 
+	-- 绘制窗口边框
+	local borderWidth = 2
+	self:drawRectBorder(0, 0, self.width, self.height, borderWidth, 0.7, 0.7, 0.7, 1)
+
 	-- 调用父类的render方法
 	ISCollapsableWindow.render(self);
 end
@@ -84,15 +88,16 @@ function ISSimpleShop:create()
 	-- 计算可用空间，预留边距和按钮空间
 	local margin = 20; -- 统一边距
 	local listWidth = self.width - (margin * 2); -- 左右对称边距
-	local listHeight = self.height - y - 70; -- 预留按钮和底部边距空间，增加顶部空隙
+	local listHeight = buttonY - y - 10; -- 精确计算列表高度，从当前y位置到按钮上方的距离
 
 	-- 创建标准滚动列表框
 	self.itemList = ISScrollingListBox:new(margin, y, listWidth, listHeight)
 	self.itemList:initialise()
 	self.itemList:instantiate()
 	self.itemList.backgroundColor = {r=0.05, g=0.05, b=0.05, a=0.8}
-	self.itemList.borderColor = {r=0.4, g=0.4, b=0.4, a=1}
-	self.itemList.itemheight = 60  -- 设置每个列表项的高度
+	self.itemList.borderColor = {r=0.6, g=0.6, b=0.6, a=1}
+	self.itemList.borderWidth = 2
+	self.itemList.itemheight = 40  -- 设置每个列表项的高度
 	
 	-- 添加物品到列表
 	local items = self.settings["ITEMS"]
@@ -115,20 +120,27 @@ function ISSimpleShop:create()
 	
 	-- 设置列表项渲染函数
 	function self.itemList:doDrawItem(y, item, alt)
+		-- 绘制项目背景边框 - 更明显的边框
+		self:drawRectBorder(0, y, self:getWidth(), self.itemheight, 3, 0.5, 0.5, 0.5, 0.8)
+		
 		if self.selected == item.index then
 			self:drawRect(0, y, self:getWidth(), self.itemheight, 0.3, 0.7, 0.7, 0.3)
 		end
 		
-		-- 绘制图标
-		if item.item.icon then
-			self:drawTexture(item.item.icon, 10, y + (self.itemheight - 40) / 2, 1, 40, 40, 1, 1, 1, 1)
-		end
+	-- 计算垂直居中位置
+	local textY = y + (self.itemheight - 20) / 2  -- 假设文本高度为20像素
+	local iconY = y + (self.itemheight - 30) / 2  -- 图标高度调整为30像素
+		
+	-- 绘制图标
+	if item.item.icon then
+		self:drawTexture(item.item.icon, 10, iconY, 1, 30, 30, 1, 1, 1, 1)
+	end
 		
 		-- 绘制物品名称
-		self:drawText(item.item.itemName, 60, y + 10, 1, 1, 1, 1, UIFont.Small)
+		self:drawText(item.item.itemName, 60, textY, 1, 1, 1, 1, UIFont.Small)
 		
 		-- 绘制价格
-		self:drawText("$" .. tostring(item.item.cost), self:getWidth() - 60, y + 10, 1, 1, 0, 1, UIFont.Small)
+		self:drawText("$" .. tostring(item.item.cost), self:getWidth() - 60, textY, 1, 1, 0, 1, UIFont.Small)
 		
 		return y + self.itemheight
 	end
