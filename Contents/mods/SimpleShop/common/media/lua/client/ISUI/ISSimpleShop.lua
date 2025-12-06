@@ -39,21 +39,30 @@ function ISSimpleShop:create()
 	-- 使用统一的边距变量
 	local margin = 20;
 
-	-- 玩家信息显示
+	-- 第一行：玩家信息和金钱（左侧）
 	self.playerLabel = ISLabel:new(margin, y, 20, "", 1, 1, 1, 1, UIFont.Medium);
 	self.playerLabel:initialise();
 	self.playerLabel:instantiate();
 	self.panel:addChild(self.playerLabel);
 
-	y = y + 25;
-
-	-- 金钱显示
-	self.moneyLabel = ISLabel:new(margin, y, 16, "", 1, 1, 1, 1, UIFont.Small);
+	-- 金钱显示在玩家信息右侧
+	self.moneyLabel = ISLabel:new(self.width - margin - 150, y, 16, "", 1, 1, 0, 1, UIFont.Small);
 	self.moneyLabel:initialise();
 	self.moneyLabel:instantiate();
 	self.panel:addChild(self.moneyLabel);
 
-	y = y + 25;
+	y = y + 30;
+
+	-- 第二行：分类选择器（移除标签，下拉框占据整行）
+	self.categoryCombo = ISComboBox:new(margin, y - 2, self.width - margin * 2, 25);
+	self.categoryCombo:initialise();
+	self.categoryCombo:instantiate();
+	self.categoryCombo.font = UIFont.Small;
+	self.categoryCombo.onChange = self.onCategoryChange;
+	self.categoryCombo.target = self;
+	self.panel:addChild(self.categoryCombo);
+
+	y = y + 30;
 
 	-- 在底部添加按钮区域，居中显示
 	local buttonWidth = 90; -- 增加按钮宽度
@@ -99,24 +108,8 @@ function ISSimpleShop:create()
 	self.itemList.borderWidth = 2
 	self.itemList.itemheight = 40  -- 设置每个列表项的高度
 	
-	-- 添加物品到列表
-	local items = self.settings["ITEMS"]
-	for itemType,cost in pairs(items) do
-		local item = instanceItem(itemType)
-		if item then
-			-- 创建列表项数据
-			local listItem = {
-				itemType = itemType,
-				cost = cost,
-				itemName = item:getDisplayName(),
-				text = item:getDisplayName() .. " - $" .. tostring(cost),
-				icon = item:getTexture()
-			}
-			
-			-- 添加到列表
-			self.itemList:addItem(listItem.text, listItem)
-		end
-	end
+	-- 初始化物品数据并填充分类
+	self:initItemsAndCategories()
 	
 	-- 设置列表项渲染函数
 	function self.itemList:doDrawItem(y, item, alt)
@@ -141,6 +134,12 @@ function ISSimpleShop:create()
 		
 		-- 绘制价格
 		self:drawText("$" .. tostring(item.item.cost), self:getWidth() - 60, textY, 1, 1, 0, 1, UIFont.Small)
+		
+		-- 绘制分类信息（如果可用）
+		if item.item.category then
+			local categoryText = getText("IGUI_ItemCat_" .. item.item.category)
+			self:drawText(categoryText, self:getWidth() - 200, textY, 0.7, 0.7, 0.7, 0.7, UIFont.Small)
+		end
 		
 		return y + self.itemheight
 	end
@@ -168,6 +167,117 @@ function ISSimpleShop:onCloseMouseDown(button, x, y)
 		-- 不调用removeFromUIManager，这样可以保留窗口对象
 		-- 只是将它隐藏，下次可以再次显示
 	end
+end
+
+-- **************************************************************************************
+-- 初始化物品数据和分类
+-- **************************************************************************************
+function ISSimpleShop:initItemsAndCategories()
+	-- 存储所有物品数据
+	self.allItems = {}
+	self.categories = {}
+	
+	-- 获取物品列表并分类
+	local items = self.settings["ITEMS"]
+	for itemType,cost in pairs(items) do
+		local item = instanceItem(itemType)
+		if item then
+			-- 获取物品分类
+			local category = item:getCategory()
+			if not category then
+				category = "Other"
+			end
+			
+			-- 创建列表项数据
+			local listItem = {
+				itemType = itemType,
+				cost = cost,
+				itemName = item:getDisplayName(),
+				text = item:getDisplayName() .. " - $" .. tostring(cost),
+				icon = item:getTexture(),
+				category = category
+			}
+			
+			-- 添加到所有物品列表
+			table.insert(self.allItems, listItem)
+			
+			-- 添加到分类映射
+			if not self.categories[category] then
+				self.categories[category] = {}
+			end
+			table.insert(self.categories[category], listItem)
+		end
+	end
+	
+	-- 填充分类下拉框
+	self.categoryCombo:addOption(getText("UI_SimpleShop_AllCategories")) -- 所有分类选项
+	
+	-- 获取并排序分类名称
+	local categoryNames = {}
+	for categoryName in pairs(self.categories) do
+		table.insert(categoryNames, categoryName)
+	end
+	table.sort(categoryNames)
+	
+	-- 添加分类选项
+	for _, categoryName in ipairs(categoryNames) do
+		local displayName = getText("IGUI_ItemCat_" .. categoryName)
+		if displayName == "IGUI_ItemCat_" .. categoryName then
+			-- 如果没有找到对应的翻译文本，使用原始分类名
+			self.categoryCombo:addOption(categoryName)
+		else
+			self.categoryCombo:addOption(displayName)
+		end
+	end
+	
+	-- 默认选择"所有分类"
+	self.categoryCombo.selected = 1
+	
+	-- 显示所有物品
+	self:filterItemsByCategory(nil)
+end
+
+-- **************************************************************************************
+-- 根据分类筛选物品
+-- **************************************************************************************
+function ISSimpleShop:filterItemsByCategory(categoryName)
+	-- 清空当前列表
+	self.itemList:clear()
+	
+	local itemsToShow
+	
+	if not categoryName or categoryName == getText("UI_SimpleShop_AllCategories") then
+		-- 显示所有物品
+		itemsToShow = self.allItems
+	else
+		-- 显示指定分类的物品
+		-- 需要将显示名称转换回原始分类名
+		local originalCategoryName = categoryName
+		for catName, items in pairs(self.categories) do
+			local displayName = getText("IGUI_ItemCat_" .. catName)
+			if displayName == categoryName or catName == categoryName then
+				originalCategoryName = catName
+				break
+			end
+		end
+		itemsToShow = self.categories[originalCategoryName] or {}
+	end
+	
+	-- 添加物品到列表
+	for _, listItem in ipairs(itemsToShow) do
+		self.itemList:addItem(listItem.text, listItem)
+	end
+	
+	-- 重置选择
+	self.itemList.selected = 0
+end
+
+-- **************************************************************************************
+-- 分类选择改变事件
+-- **************************************************************************************
+function ISSimpleShop:onCategoryChange(combo)
+	local selectedText = combo:getOptionText(combo.selected)
+	self:filterItemsByCategory(selectedText)
 end
 
 function ISSimpleShop:new(x, y, width, height, player, settings)

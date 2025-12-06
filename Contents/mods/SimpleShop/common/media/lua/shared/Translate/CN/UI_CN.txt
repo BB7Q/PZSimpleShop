@@ -6,4 +6,5 @@ UI_CN = {
 	UI_SimpleShop_Money = "金钱",
 	UI_SimpleShop_NotEnoughMoney = "金钱不足",
 	UI_optionscreen_binding_OpenSimpleShop = "打开商店",
+	UI_SimpleShop_AllCategories = "所有分类",
 }

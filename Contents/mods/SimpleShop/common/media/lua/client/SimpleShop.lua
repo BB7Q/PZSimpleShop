@@ -52,7 +52,7 @@ local function showUpgradeScreen(playerNum)
 		local screenWidth = getPlayerScreenWidth(playerNum);
 		local screenHeight = getPlayerScreenHeight(playerNum);
 		local windowWidth = 620;
-		local windowHeight = 550;
+		local windowHeight = 545;
 		-- 计算中心位置
 		local x = (screenWidth - windowWidth) / 2;
 		local y = (screenHeight - windowHeight) / 2;
