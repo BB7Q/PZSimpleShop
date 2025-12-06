@@ -86,211 +86,62 @@ function ISSimpleShop:create()
 	local listWidth = self.width - (margin * 2); -- 左右对称边距
 	local listHeight = self.height - y - 70; -- 预留按钮和底部边距空间，增加顶部空隙
 
-	-- 创建自定义滚动面板，以便显示图标
-	self.scrollPanel = ISPanel:new(margin, y, listWidth, listHeight)
-	self.scrollPanel:initialise()
-	self.scrollPanel:instantiate()
-	self.scrollPanel:setScrollChildren(true)
-	self.scrollPanel.backgroundColor = {r=0.05, g=0.05, b=0.05, a=0.8}
-	self.scrollPanel.borderColor = {r=0.4, g=0.4, b=0.4, a=1}
+	-- 创建标准滚动列表框
+	self.itemList = ISScrollingListBox:new(margin, y, listWidth, listHeight)
+	self.itemList:initialise()
+	self.itemList:instantiate()
+	self.itemList.backgroundColor = {r=0.05, g=0.05, b=0.05, a=0.8}
+	self.itemList.borderColor = {r=0.4, g=0.4, b=0.4, a=1}
+	self.itemList.itemheight = 60  -- 设置每个列表项的高度
 	
-	-- 添加裁剪功能，防止内容溢出
-	function self.scrollPanel:prerender()
-		ISPanel.prerender(self)
-		self:setStencilRect(0, 0, self.width, self.height)
-	end
-	function self.scrollPanel:postrender()
-		self:clearStencilRect()
-		ISPanel.postrender(self)
-	end
-	
-	self.panel:addChild(self.scrollPanel)
-
-	-- 创建用于存储物品元素的数组
-	self.itemElements = {}
-	
-	-- 栅格布局参数 - 动态计算单元格大小以均分容器
+	-- 添加物品到列表
 	local items = self.settings["ITEMS"]
-	local itemCount = 0
-	for _ in pairs(items) do itemCount = itemCount + 1 end
-	
-	-- 计算最优的列数和单元格大小
-	local minCellWidth = 100
-	local maxCols = math.floor(listWidth / minCellWidth)
-	local targetCols = math.min(4, maxCols) -- 最多4列
-	if targetCols < 1 then targetCols = 1 end
-	
-	-- 计算单元格宽度，确保均分容器宽度，考虑左右两边都留出边距
-	local cellSpacing = 5
-	-- 确保两侧都有边距，总宽度减去所有边距和间隔
-	local availableWidth = listWidth - cellSpacing * (targetCols + 1)
-	local cellWidth = math.floor(availableWidth / targetCols)
-	local cellHeight = 110  -- 固定高度以容纳图标和文字
-	
-	-- 添加可购买的物品
-	local itemIndex = 0
 	for itemType,cost in pairs(items) do
 		local item = instanceItem(itemType)
 		if item then
-			itemIndex = itemIndex + 1
-			
-			-- 计算在栅格中的位置，确保左右两边都有相同的边距
-			local row = math.floor((itemIndex - 1) / targetCols)
-			local col = (itemIndex - 1) % targetCols
-			local x = cellSpacing + col * (cellWidth + cellSpacing)
-			local y = cellSpacing + row * (cellHeight + cellSpacing)
-			
-			-- 创建物品单元格面板
-			local itemPanel = ISPanel:new(x, y, cellWidth, cellHeight)
-			itemPanel.backgroundColor = {r=0.1, g=0.1, b=0.1, a=0.6}
-			itemPanel.borderColor = {r=0.3, g=0.3, b=0.3, a=0.6}
-			itemPanel:initialise()
-			itemPanel.itemType = itemType
-			itemPanel.cost = cost
-			itemPanel.itemName = item:getDisplayName()
-			
-			-- 保存对主窗口的引用，以便在事件处理中使用
-			itemPanel.shopWindow = self
-			-- 立即设置索引，确保在事件处理中可用
-			itemPanel.index = itemIndex
-			
-			-- 鼠标悬停效果
-			function itemPanel:onMouseMove(dx, dy)
-				self.backgroundColor = {r=0.2, g=0.2, b=0.2, a=0.8}
-			end
-			function itemPanel:onMouseMoveOutside(dx, dy)
-				self.backgroundColor = {r=0.1, g=0.1, b=0.1, a=0.6}
-			end
-			
-			-- 增加鼠标点击区域和灵敏度
-			function itemPanel:onMouseUp(x, y)
-				if self.shopWindow and self.shopWindow.itemList then
-					self.shopWindow.itemList.selected = self.index
-					-- 更新所有项的选中状态
-					if self.shopWindow.itemElements then
-						for _, elem in ipairs(self.shopWindow.itemElements) do
-							if elem.panel ~= self then
-								elem.panel.borderColor = {r=0.3, g=0.3, b=0.3, a=0.6}
-							else
-								elem.panel.borderColor = {r=0.7, g=0.7, b=0.3, a=1}
-							end
-						end
-					end
-				end
-				return true
-			end
-			
-			-- 同时保留onMouseDown事件作为备用
-			function itemPanel:onMouseDown(x, y)
-				if self.shopWindow and self.shopWindow.itemList then
-					self.shopWindow.itemList.selected = self.index
-				end
-				return true
-			end
-			
-			self.scrollPanel:addChild(itemPanel)
-			
-			-- 创建物品图标 - 居中显示
-			local iconTexture = item:getTexture()
-			local iconSize = 48  -- 图标尺寸
-			local itemIcon = ISImage:new((cellWidth - iconSize) / 2, 10, iconSize, iconSize, iconTexture)
-			itemIcon:initialise()
-			-- 设置图标不处理鼠标事件，让父面板接收点击
-			itemIcon.onMouseUp = function() return false end
-			itemIcon.onMouseDown = function() return false end
-			itemPanel:addChild(itemIcon)
-			
-			-- 创建物品名称标签 - 居中显示
-			local displayName = item:getDisplayName()
-			if #displayName > 12 then
-				displayName = displayName:sub(1, 9) .. "..."
-			end
-			
-			-- 创建物品名称标签 - 直接添加到itemPanel并留出边框空间
-			local nameLabel = ISLabel:new(0, 10 + iconSize + 5, 20, displayName, 1, 1, 1, 1, UIFont.Small)
-			nameLabel:initialise()
-			nameLabel:setAnchorLeft(false)
-			nameLabel:setAnchorRight(false)
-			nameLabel:setAnchorTop(false)
-			nameLabel:setAnchorBottom(false)
-			-- 设置标签不处理鼠标事件，让父面板接收点击
-			nameLabel.onMouseUp = function() return false end
-			nameLabel.onMouseDown = function() return false end
-			itemPanel:addChild(nameLabel)
-			
-			-- 创建价格标签 - 直接添加到itemPanel并留出边框空间
-			local priceLabel = ISLabel:new(0, cellHeight - 25, 20, "$" .. tostring(cost), 1, 1, 0, 1, UIFont.Small)
-			priceLabel:initialise()
-			priceLabel:setAnchorLeft(false)
-			priceLabel:setAnchorRight(false)
-			priceLabel:setAnchorTop(false)
-			priceLabel:setAnchorBottom(false)
-			-- 设置标签不处理鼠标事件，让父面板接收点击
-			priceLabel.onMouseUp = function() return false end
-			priceLabel.onMouseDown = function() return false end
-			itemPanel:addChild(priceLabel)
-			
-			-- 后续在面板渲染时计算和设置文本居中
-			function itemPanel:render()
-				ISPanel.render(self)
-				-- 计算名称标签的居中位置，留出边框空间
-				if nameLabel and nameLabel.name then
-					local textWidth = getTextManager():MeasureStringX(UIFont.Small, nameLabel.name)
-					nameLabel:setX((self.width - textWidth) / 2)
-				end
-				
-				-- 计算价格标签的居中位置，留出边框空间
-				if priceLabel and priceLabel.name then
-					local textWidth = getTextManager():MeasureStringX(UIFont.Small, priceLabel.name)
-					priceLabel:setX((self.width - textWidth) / 2)
-				end
-			end
-			
-			-- 存储元素引用
-			table.insert(self.itemElements, {
-				panel = itemPanel,
-				icon = itemIcon,
-				nameLabel = nameLabel,
-				priceLabel = priceLabel,
+			-- 创建列表项数据
+			local listItem = {
 				itemType = itemType,
 				cost = cost,
-				index = itemIndex
-			})
+				itemName = item:getDisplayName(),
+				text = item:getDisplayName() .. " - $" .. tostring(cost),
+				icon = item:getTexture()
+			}
+			
+			-- 添加到列表
+			self.itemList:addItem(listItem.text, listItem)
 		end
 	end
 	
-	-- 计算总高度
-	local totalRows = math.ceil(itemIndex / targetCols)
-	local totalHeight = totalRows * (cellHeight + cellSpacing) + cellSpacing
-	
-	-- 设置滚动高度
-	self.scrollPanel:setScrollHeight(totalHeight)
-	
-	-- 添加滚动条并启用鼠标滚轮支持
-	self.scrollPanel:addScrollBars()
-	
-	-- 添加鼠标滚轮支持
-	self.scrollPanel.onMouseWheel = function(self, del)
-		if self:getScrollHeight() > self:getHeight() then
-			self:setYScroll(self:getYScroll() - (del * 20))
-			return true
+	-- 设置列表项渲染函数
+	function self.itemList:doDrawItem(y, item, alt)
+		if self.selected == item.index then
+			self:drawRect(0, y, self:getWidth(), self.itemheight, 0.3, 0.7, 0.7, 0.3)
 		end
-		return false
+		
+		-- 绘制图标
+		if item.item.icon then
+			self:drawTexture(item.item.icon, 10, y + (self.itemheight - 40) / 2, 1, 40, 40, 1, 1, 1, 1)
+		end
+		
+		-- 绘制物品名称
+		self:drawText(item.item.itemName, 60, y + 10, 1, 1, 1, 1, UIFont.Small)
+		
+		-- 绘制价格
+		self:drawText("$" .. tostring(item.item.cost), self:getWidth() - 60, y + 10, 1, 1, 0, 1, UIFont.Small)
+		
+		return y + self.itemheight
 	end
 	
-	-- 创建一个虚拟的itemList用于兼容现有代码
-	self.itemList = {
-		selected = 0,
-		items = self.itemElements
-	}
+	self.panel:addChild(self.itemList)
 end
 
 function ISSimpleShop:onBuyMouseDown(button, x, y)
-	if button.internal == "buy" and self.itemList.selected > 0 then
-		local itemElement = self.itemList.items[self.itemList.selected]
-		if itemElement and self.char:getModData().playerMoney >= itemElement.cost then
-			self.char:getModData().playerMoney = luautils.round(self.char:getModData().playerMoney - itemElement.cost, 0);
-			self.char:getInventory():AddItem(itemElement.itemType);
+	if button.internal == "buy" and self.itemList.selected >= 0 then
+		local selectedItem = self.itemList.items[self.itemList.selected]
+		if selectedItem and selectedItem.item and self.char:getModData().playerMoney >= selectedItem.item.cost then
+			self.char:getModData().playerMoney = luautils.round(self.char:getModData().playerMoney - selectedItem.item.cost, 0);
+			self.char:getInventory():AddItem(selectedItem.item.itemType);
 			-- 更新显示的金钱
 			if self.moneyLabel then
 				self.moneyLabel.name = getText("UI_SimpleShop_Money") .. ": " .. self.char:getModData().playerMoney;
