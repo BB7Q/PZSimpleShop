@@ -1,0 +1,26 @@
+# Project Zomboid mod specific ignores
+*.log
+*.tmp
+*.cache
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+
+# Temporary files
+*.bak
+*.backup
+
+# Lua bytecode
+*.luac

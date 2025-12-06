@@ -1,0 +1,9 @@
+UI_EN = {
+	UI_SimpleShop_WindowTitle = "Shop",
+	UI_SimpleShop_OpenShop = "Open Shop",
+	UI_SimpleShop_Buy = "Buy",
+	UI_SimpleShop_Close = "Close",
+	UI_SimpleShop_Money = "Money",
+	UI_SimpleShop_NotEnoughMoney = "Not enough money",
+	UI_optionscreen_binding_OpenSimpleShop = "Open shop",
+}

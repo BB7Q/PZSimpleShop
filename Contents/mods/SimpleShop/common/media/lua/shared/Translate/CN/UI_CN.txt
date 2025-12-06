@@ -1,0 +1,9 @@
+UI_CN = {
+	UI_SimpleShop_WindowTitle = "商店",
+	UI_SimpleShop_OpenShop = "打开商店",
+	UI_SimpleShop_Buy = "购买",
+	UI_SimpleShop_Close = "关闭",
+	UI_SimpleShop_Money = "金钱",
+	UI_SimpleShop_NotEnoughMoney = "金钱不足",
+	UI_optionscreen_binding_OpenSimpleShop = "打开商店",
+}

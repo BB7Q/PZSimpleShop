@@ -1,0 +1,92 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1f2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f1524;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd700;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#ffcc00;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ffaa00;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="bloodGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b0000;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#660000;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="256" height="256" fill="url(#bgGradient)" rx="20"/>
+  
+  <!-- 外框 -->
+  <rect x="8" y="8" width="240" height="240" rx="15" fill="none" stroke="#4a5568" stroke-width="3"/>
+  
+  <!-- 商店建筑轮廓 -->
+  <rect x="60" y="60" width="136" height="100" rx="8" fill="#2d3748" stroke="#4a5568" stroke-width="2" filter="url(#shadow)"/>
+  
+  <!-- 商店门 -->
+  <rect x="110" y="100" width="36" height="60" rx="3" fill="#553c2a" stroke="#3a2c1f" stroke-width="1"/>
+  <circle cx="125" cy="130" r="3" fill="#ffd700"/>
+  
+  <!-- 商店窗户 -->
+  <rect x="75" y="70" width="30" height="25" rx="2" fill="#87ceeb" stroke="#4682b4" stroke-width="1"/>
+  <rect x="151" y="70" width="30" height="25" rx="2" fill="#87ceeb" stroke="#4682b4" stroke-width="1"/>
+  
+  <!-- 商店招牌 -->
+  <rect x="80" y="40" width="96" height="20" rx="3" fill="#8b0000" stroke="#660000" stroke-width="1"/>
+  <text x="128" y="54" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="10" font-weight="bold">SHOP</text>
+  
+  <!-- 金币堆 -->
+  <circle cx="50" cy="180" r="12" fill="url(#goldGradient)" filter="url(#glow)"/>
+  <circle cx="65" cy="195" r="10" fill="url(#goldGradient)" filter="url(#glow)"/>
+  <circle cx="45" cy="200" r="8" fill="url(#goldGradient)" filter="url(#glow)"/>
+  
+  <!-- 僵尸头部 -->
+  <circle cx="200" cy="170" r="12" fill="#556b2f" stroke="#3d4c29" stroke-width="1"/>
+  
+  <!-- 僵尸身体 -->
+  <rect x="190" y="182" width="20" height="25" rx="3" fill="#4a5d2e" stroke="#3d4c29" stroke-width="1"/>
+  
+  <!-- 僵尸手臂（伸向金币） -->
+  <path d="M 180,185 Q 170,175 165,180 Q 160,185 170,190 Z" fill="#4a5d2e" stroke="#3d4c29" stroke-width="1"/>
+  
+  <!-- 僵尸眼睛（空洞效果） -->
+  <circle cx="195" cy="167" r="2" fill="#000000"/>
+  <circle cx="205" cy="167" r="2" fill="#000000"/>
+  
+  <!-- 僵尸嘴巴（张开的血口） -->
+  <ellipse cx="200" cy="175" rx="4" ry="2" fill="#8b0000"/>
+  
+  <!-- 僵尸头发/破损效果 -->
+  <path d="M 195,158 Q 192,155 195,152 Q 198,155 195,158" fill="#3d4c29"/>
+  <path d="M 205,158 Q 202,155 205,152 Q 208,155 205,158" fill="#3d4c29"/>
+  
+  <!-- 血迹效果 -->
+  <ellipse cx="210" cy="195" rx="5" ry="3" fill="url(#bloodGradient)" opacity="0.8"/>
+  <ellipse cx="215" cy="190" rx="3" ry="2" fill="url(#bloodGradient)" opacity="0.6"/>
+  
+  <!-- 僵尸腿部 -->
+  <rect x="192" y="207" width="4" height="8" fill="#4a5d2e"/>
+  <rect x="204" y="207" width="4" height="8" fill="#4a5d2e"/>
+  
+  <!-- 货币符号 -->
+  <text x="50" y="185" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="8" font-weight="bold">$</text>
+  <text x="65" y="200" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="7" font-weight="bold">$</text>
+  <text x="45" y="205" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="6" font-weight="bold">$</text>
+  
+  <!-- 标题文字 -->
+  <text x="128" y="230" text-anchor="middle" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="14" font-weight="bold" letter-spacing="1">Simple Shop</text>
+  
+  <!-- 装饰性边框 -->
+  <rect x="12" y="12" width="232" height="232" rx="18" fill="none" stroke="#718096" stroke-width="1" stroke-dasharray="4,4" opacity="0.3"/>
+</svg>
