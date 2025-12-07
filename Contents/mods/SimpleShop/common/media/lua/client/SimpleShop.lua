@@ -134,7 +134,7 @@ end
 SimpleShop.LoadSettings = function()
 	-- 将基础设置和商品清单合并为一个设置对象
 	SimpleShop.settings = {
-		["BASIC"] = SimpleShopBasicSettings,
+		["BASIC"] = SimpleShopBasic,
 		["ITEMS"] = SimpleShopItems
 	};
 end
