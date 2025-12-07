@@ -13,8 +13,10 @@ function ISSimpleShop:render()
 	if self.playerLabel then
 		self.playerLabel.name = self.char:getDescriptor():getForename().." "..self.char:getDescriptor():getSurname();
 	end
+	-- 使用新的API获取玩家金钱
 	if self.moneyLabel then
-		self.moneyLabel.name = getText("UI_SimpleShop_Money") .. ": " .. self.char:getModData().playerMoney;
+		local playerMoney = SimpleShop.GetPlayerMoney() or 0;
+		self.moneyLabel.name = getText("UI_SimpleShop_Money") .. ": " .. playerMoney;
 	end
 
 	-- 绘制窗口边框
@@ -176,12 +178,19 @@ end
 function ISSimpleShop:onBuyMouseDown(button, x, y)
 	if button.internal == "buy" and self.itemList.selected >= 0 then
 		local selectedItem = self.itemList.items[self.itemList.selected]
-		if selectedItem and selectedItem.item and self.char:getModData().playerMoney >= selectedItem.item.cost then
-			self.char:getModData().playerMoney = luautils.round(self.char:getModData().playerMoney - selectedItem.item.cost, 0);
-			self.char:getInventory():AddItem(selectedItem.item.itemType);
-			-- 更新显示的金钱
-			if self.moneyLabel then
-				self.moneyLabel.name = getText("UI_SimpleShop_Money") .. ": " .. self.char:getModData().playerMoney;
+		if selectedItem and selectedItem.item then
+			-- 使用新的API检查是否有足够金钱
+			if SimpleShop.HasEnoughMoney(selectedItem.item.cost) then
+				-- 使用新的API扣除金钱
+				if SimpleShop.RemovePlayerMoney(selectedItem.item.cost) then
+					-- 添加物品到玩家背包
+					self.char:getInventory():AddItem(selectedItem.item.itemType);
+					-- 使用新的API获取更新后的金钱并更新显示
+					local newMoney = SimpleShop.GetPlayerMoney();
+					if self.moneyLabel and newMoney ~= nil then
+						self.moneyLabel.name = getText("UI_SimpleShop_Money") .. ": " .. newMoney;
+					end
+				end
 			end
 		end
 	end

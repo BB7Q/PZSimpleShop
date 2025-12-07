@@ -121,8 +121,9 @@ SimpleShop.onPlayerAttackFinished = function(player,handWeapon)
 	local playerNewKills = player:getZombieKills();
 	local newCount = playerNewKills - SimpleShop.zombieKills[playerIndex];
 	if playerNewKills > SimpleShop.zombieKills[playerIndex] then
-		-- 说明该玩家有新的僵尸击杀，所以要给他加钱
-		SimpleShop.modData[playerIndex].playerMoney = math.floor(SimpleShop.modData[playerIndex].playerMoney + SimpleShop.settings["BASIC"]["zombieKillAmount"] * newCount);
+		-- 说明该玩家有新的僵尸击杀，所以要给他加钱，使用新的API函数
+		local rewardAmount = math.floor(SimpleShop.settings["BASIC"]["zombieKillAmount"] * newCount);
+		SimpleShop.AddPlayerMoney(rewardAmount, playerIndex);
 		-- 更新击杀数
 		SimpleShop.zombieKills[playerIndex] = playerNewKills;
 	end
@@ -184,6 +185,73 @@ SimpleShop.getCurrentPlayerIndexNum = function()
 			return i;
 		end
 	end
+end
+
+-- **************************************************************************************
+-- 货币系统API - 供其他mod调用
+-- **************************************************************************************
+
+-- **************************************************************************************
+-- 获取玩家当前金额
+-- @param playerIndex 玩家索引号，可选参数，默认为当前玩家
+-- @return 玩家当前金额，如果玩家不存在返回nil
+-- **************************************************************************************
+SimpleShop.GetPlayerMoney = function(playerIndex)
+    local playerIdx = playerIndex or SimpleShop.getCurrentPlayerIndexNum();
+    if not SimpleShop.modData[playerIdx] then return nil; end
+    return SimpleShop.modData[playerIdx].playerMoney or 0;
+end
+
+-- **************************************************************************************
+-- 增加玩家金额
+-- @param amount 增加的金额（必须为正数）
+-- @param playerIndex 玩家索引号，可选参数，默认为当前玩家
+-- @return 是否成功增加金额，如果玩家不存在或金额无效返回false，否则返回true
+-- **************************************************************************************
+SimpleShop.AddPlayerMoney = function(amount, playerIndex)
+    if not amount or amount <= 0 then return false; end
+    
+    local playerIdx = playerIndex or SimpleShop.getCurrentPlayerIndexNum();
+    if not SimpleShop.modData[playerIdx] then return false; end
+    
+    local currentMoney = SimpleShop.modData[playerIdx].playerMoney or 0;
+    SimpleShop.modData[playerIdx].playerMoney = currentMoney + amount;
+    return true;
+end
+
+-- **************************************************************************************
+-- 减少玩家金额
+-- @param amount 减少的金额（必须为正数）
+-- @param playerIndex 玩家索引号，可选参数，默认为当前玩家
+-- @return 是否成功减少金额，如果玩家不存在、金额无效或余额不足返回false，否则返回true
+-- **************************************************************************************
+SimpleShop.RemovePlayerMoney = function(amount, playerIndex)
+    if not amount or amount <= 0 then return false; end
+    
+    local playerIdx = playerIndex or SimpleShop.getCurrentPlayerIndexNum();
+    if not SimpleShop.modData[playerIdx] then return false; end
+    
+    local currentMoney = SimpleShop.modData[playerIdx].playerMoney or 0;
+    if currentMoney < amount then return false; end -- 余额不足
+    
+    SimpleShop.modData[playerIdx].playerMoney = currentMoney - amount;
+    return true;
+end
+
+-- **************************************************************************************
+-- 检查玩家是否有足够金额
+-- @param amount 需要的金额（必须为正数）
+-- @param playerIndex 玩家索引号，可选参数，默认为当前玩家
+-- @return 玩家是否有足够金额，如果玩家不存在或金额无效返回false
+-- **************************************************************************************
+SimpleShop.HasEnoughMoney = function(amount, playerIndex)
+    if not amount or amount <= 0 then return false; end
+    
+    local playerIdx = playerIndex or SimpleShop.getCurrentPlayerIndexNum();
+    if not SimpleShop.modData[playerIdx] then return false; end
+    
+    local currentMoney = SimpleShop.modData[playerIdx].playerMoney or 0;
+    return currentMoney >= amount;
 end
 
 -- **************************************************************************************

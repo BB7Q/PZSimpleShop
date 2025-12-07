@@ -1,0 +1,319 @@
+[center][h1]SimpleShop - 简单商店[/h1][/center]
+
+[h2]简介[/h2]
+SimpleShop 是一个轻松实用的购物mod，为玩家提供便捷的商店界面来购买各种游戏物品。本mod参考了CoxisShop并进行了简化设计，专门专注于物品购买功能，让您在末世中能够更轻松地获取所需物资。设计简洁直观，方便与其他mod配合使用，为您带来更好的游戏体验。
+
+[h2]主要功能[/h2]
+[list]
+    [*] 商店界面 - 滚动列表显示物品，支持分类筛选和搜索功能
+    [*] 货币系统 - 通过击杀僵尸获得金钱
+    [*] 死亡继承 - 玩家死亡后保留全部金钱
+    [*] 右键菜单 - 在世界界面或物品栏中右键点击，选择"打开商店"
+    [*] 多语言支持 - 内置中英文界面
+    [*] 可配置 - 支持自定义初始金钱和物品价格
+[/list]
+
+[h2]如何使用[/h2]
+[list]
+    [*] 打开商店：在世界界面或物品栏中右键点击，选择"打开商店"
+    [*] 购买物品：打开商店界面，点击要购买的物品，然后点击"购买"按钮
+    [*] 搜索物品：使用搜索框快速查找所需物品
+    [*] 分类筛选：使用下拉菜单按类别浏览物品
+    [*] 获得金钱：击杀僵尸可获得金钱奖励，新角色开始时有初始资金
+[/list]
+
+[h2]配置选项[/h2]
+[list]
+    [*] 初始金钱：100（可在SimpleShopBasic.lua中修改）
+    [*] 击杀奖励：每杀死一个僵尸获得10金钱
+    [*] 可购买物品：包括基础生存物资、医疗用品、工具、武器、建筑材料和弹药
+[/list]
+
+[h3]配置文件位置[/h3]
+模组配置文件位于：[code]SimpleShop/common/media/lua/shared/[/code]
+
+[b]基础配置 (SimpleShopBasic.lua)[/b]
+[code]
+SimpleShopBasic = {
+    ["initialMoney"] = 100, -- 新角色初始金钱
+    ["zombieKillAmount"] = 10, -- 每击杀一个僵尸获得的金钱
+}
+[/code]
+
+[b]物品价格配置 (SimpleShopItems.lua)[/b]
+[code]
+SimpleShopItems = {
+    -- 基础生存物资
+    ["Base.Bread"] = 75,               -- 面包
+    ["Base.Apple"] = 25,               -- 苹果
+    ["Base.Milk"] = 60,                -- 牛奶
+    -- 医疗用品
+    ["Base.Bandage"] = 150,            -- 绷带
+    ["Base.PillsBeta"] = 200,          -- 药片
+    ["Base.Disinfectant"] = 180,       -- 消毒剂
+    -- 工具
+    ["Base.Hammer"] = 300,             -- 锤子
+    ["Base.Axe"] = 500,                -- 斧头
+    ["Base.Saw"] = 400,                -- 锯子
+    ["Base.Screwdriver"] = 200,        -- 螺丝刀
+    -- 武器
+    ["Base.BaseballBat"] = 400,        -- 棒球棒
+    -- 建筑材料
+    ["Base.Nails"] = 50,               -- 钉子
+    -- 弹药
+    ["Base.Bullets9mmBox"] = 100,      -- 9mm子弹盒
+    ["Base.Bullets38Box"] = 175,       -- .38子弹盒
+    ["Base.Bullets44Box"] = 190,       -- .44子弹盒
+    ["Base.223Box"] = 300,             -- .223子弹盒
+    ["Base.308Box"] = 300,             -- .308子弹盒
+    ["Base.ShotgunShellsBox"] = 450,   -- 霰弹枪子弹盒
+    ["Base.Bullets45Box"] = 500,       -- .45子弹盒
+    ["Base.556Box"] = 600,             -- 5.56子弹盒
+}
+[/code]
+
+[b]自定义物品[/b]
+要添加新物品到商店，只需在SimpleShopItems.lua中添加新行：
+[code]
+["Base.物品ID"] = 价格, -- 物品名称
+[/code]
+
+[b]创建自定义配置模组[/b]
+为了避免在模组更新时丢失配置，建议创建一个单独的配置模组：
+
+1. 创建一个新的模组文件夹
+2. 在其中创建以下文件结构：
+[code]
+MyShopConfig/
+├── 42/
+│   └── mod.info
+└── common/
+    └── media/
+        └── lua/
+            └── shared/
+                ├── SimpleShopBasic.lua
+                └── SimpleShopItems.lua
+[/code]
+
+注意：为了兼容游戏的B42版本，需要创建42版本的文件夹。mod.info文件只需要放在42文件夹内。
+
+3. 在mod.info中添加：
+[code]
+name=My Shop Config
+id=MyShopConfig
+description=Custom configuration for SimpleShop
+poster=poster.png
+depends=SimpleShop
+[/code]
+
+4. 在你的配置文件中覆盖所需值：
+[code]
+-- SimpleShopBasic.lua
+SimpleShopBasic = {
+    ["initialMoney"] = 100, -- 初始金钱
+    ["zombieKillAmount"] = 10, -- 每击杀一个僵尸获得的金钱
+}
+
+-- SimpleShopItems.lua
+SimpleShopItems = {
+    -- 你的自定义物品价格
+    ["Base.Bread"] = 50, -- 面包
+    ["Base.CustomItem"] = 250, -- 自定义物品
+}
+[/code]
+
+5. 确保在游戏启动器中，你的配置模组位于SimpleShop之后加载
+
+这种方法可以让你在保持模组更新的同时保留自定义配置。
+
+[h2]API接口[/h2]
+SimpleShop提供了以下API，供其他mod调用以修改玩家金钱：
+
+[h3]获取玩家金额[/h3]
+[code]
+local money = SimpleShop.GetPlayerMoney(playerIndex)
+[/code]
+获取指定玩家的当前金额，不指定playerIndex则获取当前玩家金额。
+
+[h3]增加玩家金额[/h3]
+[code]
+SimpleShop.AddPlayerMoney(amount, playerIndex)
+[/code]
+为指定玩家增加金额，amount必须为正数。
+
+[h3]减少玩家金额[/h3]
+[code]
+SimpleShop.RemovePlayerMoney(amount, playerIndex)
+[/code]
+从指定玩家扣除金额，amount必须为正数且玩家余额必须足够。
+
+[h3]检查玩家金额[/h3]
+[code]
+SimpleShop.HasEnoughMoney(amount, playerIndex)
+[/code]
+检查指定玩家是否有足够金额。
+
+这些方法可用于实现任务奖励、自定义商店等需要修改玩家金钱的功能。
+
+Workshop ID: 3619356125
+Mod ID: SimpleShop
+
+[hr]
+
+[h2]Introduction[/h2]
+SimpleShop is a practical and user-friendly shopping mod that provides players with a convenient shop interface to purchase various items in the game. Based on CoxisShop and redesigned with simplicity in mind, this mod focuses solely on purchasing functionality, helping you easily obtain essential supplies in the post-apocalyptic world. Its straightforward design makes it compatible with other mods, enhancing your overall gaming experience.
+
+[h2]Key Features[/h2]
+[list]
+    [*] Shop interface - Scrollable list display with category filtering and search functionality
+    [*] Currency system - Earn money by killing zombies
+    [*] Death inheritance - Keep all money after player death
+    [*] Right-click menu - Right-click in the world or inventory and select "Open Shop"
+    [*] Multi-language support - Built-in Chinese and English interface
+    [*] Configurable - Support for custom initial money and item prices
+[/list]
+
+[h2]How to Use[/h2]
+[list]
+    [*] Open shop: Right-click in the world or inventory and select "Open Shop"
+    [*] Purchase items: Open the shop interface, click the item you want to buy, then click the "Buy" button
+    [*] Search items: Use the search box to quickly find items you need
+    [*] Category filter: Use the dropdown menu to browse items by category
+    [*] Earn money: Get money rewards by killing zombies, new characters start with initial funds
+[/list]
+
+[h2]Configuration Options[/h2]
+[list]
+    [*] Initial money: 100 (can be modified in SimpleShopBasic.lua)
+    [*] Kill reward: Get 10 money for each zombie killed
+    [*] Purchasable items: Including basic survival supplies, medical supplies, tools, weapons, building materials, and ammunition
+[/list]
+
+[h3]Configuration Files Location[/h3]
+Mod configuration files are located at: [code]SimpleShop/common/media/lua/shared/[/code]
+
+[b]Basic Configuration (SimpleShopBasic.lua)[/b]
+[code]
+SimpleShopBasic = {
+    ["initialMoney"] = 100, -- Initial money for new characters
+    ["zombieKillAmount"] = 10, -- Money earned per zombie kill
+}
+[/code]
+
+[b]Item Price Configuration (SimpleShopItems.lua)[/b]
+[code]
+SimpleShopItems = {
+    -- Basic Survival Supplies
+    ["Base.Bread"] = 75,               -- Bread
+    ["Base.Apple"] = 25,               -- Apple
+    ["Base.Milk"] = 60,                -- Milk
+    -- Medical Supplies
+    ["Base.Bandage"] = 150,            -- Bandage
+    ["Base.PillsBeta"] = 200,          -- Pills
+    ["Base.Disinfectant"] = 180,       -- Disinfectant
+    -- Tools
+    ["Base.Hammer"] = 300,             -- Hammer
+    ["Base.Axe"] = 500,                -- Axe
+    ["Base.Saw"] = 400,                -- Saw
+    ["Base.Screwdriver"] = 200,        -- Screwdriver
+    -- Weapons
+    ["Base.BaseballBat"] = 400,        -- Baseball Bat
+    -- Building Materials
+    ["Base.Nails"] = 50,               -- Nails
+    -- Ammunition
+    ["Base.Bullets9mmBox"] = 100,      -- 9mm Bullet Box
+    ["Base.Bullets38Box"] = 175,       -- .38 Bullet Box
+    ["Base.Bullets44Box"] = 190,       -- .44 Bullet Box
+    ["Base.223Box"] = 300,             -- .223 Box
+    ["Base.308Box"] = 300,             -- .308 Box
+    ["Base.ShotgunShellsBox"] = 450,   -- Shotgun Shells Box
+    ["Base.Bullets45Box"] = 500,       -- .45 Bullet Box
+    ["Base.556Box"] = 600,             -- 5.56 Box
+}
+[/code]
+
+[b]Adding Custom Items[/b]
+To add new items to the shop, simply add a new line in SimpleShopItems.lua:
+[code]
+["Base.ItemID"] = Price, -- Item Name
+[/code]
+
+[b]Creating a Custom Configuration Mod[/b]
+To avoid losing configurations when the mod updates, it's recommended to create a separate configuration mod:
+
+1. Create a new mod folder
+2. Create the following file structure within it:
+[code]
+MyShopConfig/
+├── 42/
+│   └── mod.info
+└── common/
+    └── media/
+        └── lua/
+            └── shared/
+                ├── SimpleShopBasic.lua
+                └── SimpleShopItems.lua
+[/code]
+
+Note: To ensure compatibility with game version B42, you need to create a 42 folder. The mod.info file only needs to be placed in the 42 folder.
+
+3. Add to mod.info:
+[code]
+name=My Shop Config
+id=MyShopConfig
+description=Custom configuration for SimpleShop
+poster=poster.png
+depends=SimpleShop
+[/code]
+
+4. Override needed values in your configuration files:
+[code]
+-- SimpleShopBasic.lua
+SimpleShopBasic = {
+    ["initialMoney"] = 100, -- Initial money
+    ["zombieKillAmount"] = 10, -- Money earned per zombie kill
+}
+
+-- SimpleShopItems.lua
+SimpleShopItems = {
+    -- Your custom item prices
+    ["Base.Bread"] = 50, -- Bread
+    ["Base.CustomItem"] = 250, -- Custom item
+}
+[/code]
+
+5. Make sure your configuration mod loads after SimpleShop in the game launcher
+
+This method allows you to keep your custom configurations while maintaining mod updates.
+
+[h2]API Interface[/h2]
+SimpleShop provides the following APIs for other mods to call to modify player money:
+
+[h3]Get Player Money[/h3]
+[code]
+local money = SimpleShop.GetPlayerMoney(playerIndex)
+[/code]
+Get the current amount of money for the specified player, or get the current player's money if playerIndex is not specified.
+
+[h3]Add Player Money[/h3]
+[code]
+SimpleShop.AddPlayerMoney(amount, playerIndex)
+[/code]
+Add money to the specified player, amount must be a positive number.
+
+[h3]Remove Player Money[/h3]
+[code]
+SimpleShop.RemovePlayerMoney(amount, playerIndex)
+[/code]
+Deduct money from the specified player, amount must be a positive number and the player must have sufficient balance.
+
+[h3]Check Player Money[/h3]
+[code]
+SimpleShop.HasEnoughMoney(amount, playerIndex)
+[/code]
+Check if the specified player has enough money.
+
+These methods can be used to implement features such as quest rewards, custom shops, or any functionality that requires modifying player money.
+
+Workshop ID: 3619356125
+Mod ID: SimpleShop

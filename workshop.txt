@@ -1,0 +1,6 @@
+version=1
+id=3619356125
+title=SimpleShop
+description=A simple shop mod for purchasing items only
+tags=Build 42;Balance;Food;Interface
+visibility=public
