@@ -1,7 +1,7 @@
 [center][h1]SimpleShop - 简单商店[/h1][/center]
 
 [h2]简介[/h2]
-SimpleShop 是一个轻松实用的购物mod，为玩家提供便捷的商店界面来购买各种游戏物品。本mod参考了CoxisShop并进行了简化设计，专门专注于物品购买功能，让您在末世中能够更轻松地获取所需物资。设计简洁直观，方便与其他mod配合使用，为您带来更好的游戏体验。
+SimpleShop 是一个轻松实用的购物mod，为玩家提供便捷的商店界面来购买各种游戏物品。本mod参考了CoxisShop并进行了简化设计，专门专注于物品购买功能，让您在末世中能够更轻松地获取所需物资。商品列表完全兼容其他mod物品，即使物品不存在也没关系，mod会自动检测确保只显示当前游戏中存在的物品。设计简洁直观，方便与其他mod配合使用，为您带来更好的游戏体验。
 
 [h2]主要功能[/h2]
 [list]
@@ -73,9 +73,9 @@ SimpleShopItems = {
 [/code]
 
 [b]自定义物品[/b]
-要添加新物品到商店，只需在SimpleShopItems.lua中添加新行：
+商店支持添加来自其他mod的物品，即使物品不存在也没关系，mod会自动检测只显示存在的物品。要添加新物品到商店，只需在SimpleShopItems.lua中添加新行：
 [code]
-["Base.物品ID"] = 价格, -- 物品名称
+["物品ID"] = 价格, -- 物品名称
 [/code]
 
 [b]创建自定义配置模组[/b]
@@ -161,7 +161,7 @@ Mod ID: SimpleShop
 [hr]
 
 [h2]Introduction[/h2]
-SimpleShop is a practical and user-friendly shopping mod that provides players with a convenient shop interface to purchase various items in the game. Based on CoxisShop and redesigned with simplicity in mind, this mod focuses solely on purchasing functionality, helping you easily obtain essential supplies in the post-apocalyptic world. Its straightforward design makes it compatible with other mods, enhancing your overall gaming experience.
+SimpleShop is a practical and user-friendly shopping mod that provides players with a convenient shop interface to purchase various items in the game. Based on CoxisShop and redesigned with simplicity in mind, this mod focuses solely on purchasing functionality, helping you easily obtain essential supplies in the post-apocalyptic world. The item list fully supports items from other mods, and even if items don't exist, it doesn't matter - the mod will automatically detect and ensure only existing items are displayed. Its straightforward design makes it compatible with other mods, enhancing your overall gaming experience.
 
 [h2]Key Features[/h2]
 [list]
@@ -233,9 +233,9 @@ SimpleShopItems = {
 [/code]
 
 [b]Adding Custom Items[/b]
-To add new items to the shop, simply add a new line in SimpleShopItems.lua:
+The shop supports adding items from other mods, and even if items don't exist, it's not a problem - the mod will automatically detect and only display existing items. To add new items to the shop, simply add a new line in SimpleShopItems.lua:
 [code]
-["Base.ItemID"] = Price, -- Item Name
+["ItemID"] = Price, -- Item Name
 [/code]
 
 [b]Creating a Custom Configuration Mod[/b]
