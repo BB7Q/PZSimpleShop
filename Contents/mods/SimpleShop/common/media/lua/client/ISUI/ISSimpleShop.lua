@@ -53,14 +53,33 @@ function ISSimpleShop:create()
 
 	y = y + 30;
 
-	-- 第二行：分类选择器（移除标签，下拉框占据整行）
-	self.categoryCombo = ISComboBox:new(margin, y - 2, self.width - margin * 2, 25);
+	-- 第二行：分类选择器和搜索框并排显示
+	-- 分类选择器在左侧，占据50%宽度
+	local comboWidth = (self.width - margin * 3) * 0.5; -- 50%宽度，留出间距
+	self.categoryCombo = ISComboBox:new(margin, y - 2, comboWidth, 25);
 	self.categoryCombo:initialise();
 	self.categoryCombo:instantiate();
 	self.categoryCombo.font = UIFont.Small;
-	self.categoryCombo.onChange = self.onCategoryChange;
-	self.categoryCombo.target = self;
+	-- 创建一个闭包函数来处理选择变化事件
+	self.categoryCombo.onChange = function(target)
+		local searchText = self.searchBox:getInternalText()
+		self:filterItemsBySearch(searchText)
+	end
 	self.panel:addChild(self.categoryCombo);
+	
+	-- 搜索框在右侧，占据50%宽度
+	local searchWidth = (self.width - margin * 3) * 0.5; -- 50%宽度
+	local searchX = margin + comboWidth + margin; -- 分类框宽度+间距
+	self.searchBox = ISTextEntryBox:new("", searchX, y - 2, searchWidth, 25);
+	self.searchBox:initialise();
+	self.searchBox:instantiate();
+	self.searchBox.font = UIFont.Small;
+	-- 创建一个闭包函数来处理文本变化事件
+	self.searchBox.onTextChange = function(target)
+		local searchText = target:getInternalText()
+		self:filterItemsBySearch(searchText)
+	end
+	self.panel:addChild(self.searchBox);
 
 	y = y + 30;
 
@@ -241,28 +260,35 @@ function ISSimpleShop:initItemsAndCategories()
 	self.categoryCombo.selected = 1
 	
 	-- 显示所有物品
-	self:filterItemsByCategory(nil)
+	self:filterItemsBySearch("")
 end
 
+
+
 -- **************************************************************************************
--- 根据分类筛选物品
+-- 分类选择改变事件
 -- **************************************************************************************
-function ISSimpleShop:filterItemsByCategory(categoryName)
+
+
+-- **********************************************************************************
+-- 根据搜索文本筛选物品
+-- **********************************************************************************
+function ISSimpleShop:filterItemsBySearch(searchText)
 	-- 清空当前列表
 	self.itemList:clear()
 	
 	local itemsToShow
+	local selectedCategory = self.categoryCombo:getOptionText(self.categoryCombo.selected)
 	
-	if not categoryName or categoryName == getText("UI_SimpleShop_AllCategories") then
-		-- 显示所有物品
+	-- 首先根据分类筛选
+	if not selectedCategory or selectedCategory == getText("UI_SimpleShop_AllCategories") then
 		itemsToShow = self.allItems
 	else
 		-- 显示指定分类的物品
-		-- 需要将显示名称转换回原始分类名
-		local originalCategoryName = categoryName
+		local originalCategoryName = selectedCategory
 		for catName, items in pairs(self.categories) do
 			local displayName = getText("IGUI_ItemCat_" .. catName)
-			if displayName == categoryName or catName == categoryName then
+			if displayName == selectedCategory or catName == selectedCategory then
 				originalCategoryName = catName
 				break
 			end
@@ -270,21 +296,24 @@ function ISSimpleShop:filterItemsByCategory(categoryName)
 		itemsToShow = self.categories[originalCategoryName] or {}
 	end
 	
-	-- 添加物品到列表
-	for _, listItem in ipairs(itemsToShow) do
-		self.itemList:addItem(listItem.text, listItem)
+	-- 如果没有搜索文本，直接显示分类筛选后的结果
+	if not searchText or searchText == "" then
+		for _, listItem in ipairs(itemsToShow) do
+			self.itemList:addItem(listItem.text, listItem)
+		end
+	else
+		-- 根据搜索文本进一步筛选
+		searchText = string.lower(searchText)
+		for _, listItem in ipairs(itemsToShow) do
+			local itemName = string.lower(listItem.itemName)
+			if string.find(itemName, searchText, 1, true) then
+				self.itemList:addItem(listItem.text, listItem)
+			end
+		end
 	end
 	
 	-- 重置选择
 	self.itemList.selected = 0
-end
-
--- **************************************************************************************
--- 分类选择改变事件
--- **************************************************************************************
-function ISSimpleShop:onCategoryChange(combo)
-	local selectedText = combo:getOptionText(combo.selected)
-	self:filterItemsByCategory(selectedText)
 end
 
 function ISSimpleShop:new(x, y, width, height, player, settings)
