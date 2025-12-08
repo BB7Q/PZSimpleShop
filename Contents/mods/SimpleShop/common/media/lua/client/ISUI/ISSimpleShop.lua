@@ -1,5 +1,6 @@
 require "ISUI/ISCollapsableWindow"
 require "SimpleShop"
+require "SimpleShopDataManager"
 
 ISSimpleShop = ISCollapsableWindow:derive("ISSimpleShop");
 
@@ -65,7 +66,7 @@ function ISSimpleShop:create()
 	-- 创建一个闭包函数来处理选择变化事件
 	self.categoryCombo.onChange = function(target)
 		local searchText = self.searchBox:getInternalText()
-		self:filterItemsBySearch(searchText)
+		self:applyFiltersAndUpdateView()
 	end
 	self.panel:addChild(self.categoryCombo);
 	
@@ -79,7 +80,7 @@ function ISSimpleShop:create()
 	-- 创建一个闭包函数来处理文本变化事件
 	self.searchBox.onTextChange = function(target)
 		local searchText = target:getInternalText()
-		self:filterItemsBySearch(searchText)
+		self:applyFiltersAndUpdateView()
 	end
 	self.panel:addChild(self.searchBox);
 
@@ -130,8 +131,8 @@ function ISSimpleShop:create()
 	self.itemList.itemheight = 40  -- 设置每个列表项的高度
 	self.itemList.drawBorder = true  -- 确保绘制边框
 	
-	-- 初始化物品数据并填充分类
-	self:initItemsAndCategories()
+	-- 初始化数据管理器并设置UI
+	self:initializeDataManager()
 	
 	-- 设置列表项渲染函数
 	function self.itemList:doDrawItem(y, item, alt)
@@ -145,14 +146,14 @@ function ISSimpleShop:create()
 			self:drawRect(0, y, self:getWidth(), self.itemheight, 0.3, 0.7, 0.7, 0.3)
 		end
 		
-	-- 计算垂直居中位置
-	local textY = y + (self.itemheight - 20) / 2  -- 假设文本高度为20像素
-	local iconY = y + (self.itemheight - 30) / 2  -- 图标高度调整为30像素
+		-- 计算垂直居中位置
+		local textY = y + (self.itemheight - 20) / 2  -- 假设文本高度为20像素
+		local iconY = y + (self.itemheight - 30) / 2  -- 图标高度调整为30像素
 		
-	-- 绘制图标
-	if item.item.icon then
-		self:drawTexture(item.item.icon, 10, iconY, 1, 30, 30, 1, 1, 1, 1)
-	end
+		-- 绘制图标
+		if item.item.icon then
+			self:drawTexture(item.item.icon, 10, iconY, 1, 30, 30, 1, 1, 1, 1)
+		end
 		
 		-- 绘制物品名称
 		self:drawText(item.item.itemName, 60, textY, 1, 1, 1, 1, UIFont.Small)
@@ -205,120 +206,70 @@ function ISSimpleShop:onCloseMouseDown(button, x, y)
 end
 
 -- **************************************************************************************
--- 初始化物品数据和分类
+-- 数据管理器初始化
 -- **************************************************************************************
-function ISSimpleShop:initItemsAndCategories()
-	-- 存储所有物品数据
-	self.allItems = {}
-	self.categories = {}
-	
-	-- 获取物品列表并分类
-	local items = self.settings["ITEMS"]
-	for itemType,cost in pairs(items) do
-		local item = instanceItem(itemType)
-		if item then
-			-- 获取物品分类
-			local category = item:getCategory()
-			if not category then
-				category = "Other"
-			end
-			
-			-- 创建列表项数据
-			local listItem = {
-				itemType = itemType,
-				cost = cost,
-				itemName = item:getDisplayName(),
-				text = item:getDisplayName() .. " - $" .. tostring(cost),
-				icon = item:getTexture(),
-				category = category
-			}
-			
-			-- 添加到所有物品列表
-			table.insert(self.allItems, listItem)
-			
-			-- 添加到分类映射
-			if not self.categories[category] then
-				self.categories[category] = {}
-			end
-			table.insert(self.categories[category], listItem)
-		end
-	end
+function ISSimpleShop:initializeDataManager()
+	-- 创建数据管理器实例
+	self.dataManager = SimpleShopDataManager:new(self.settings)
 	
 	-- 填充分类下拉框
-	self.categoryCombo:addOption(getText("UI_SimpleShop_AllCategories")) -- 所有分类选项
+	self.categoryCombo:clear()
+	local categoryNames = self.dataManager:getCategoryNames()
 	
-	-- 获取并排序分类名称
-	local categoryNames = {}
-	for categoryName in pairs(self.categories) do
-		table.insert(categoryNames, categoryName)
-	end
-	table.sort(categoryNames)
-	
-	-- 添加分类选项
 	for _, categoryName in ipairs(categoryNames) do
-		local displayName = getText("IGUI_ItemCat_" .. categoryName)
-		if displayName == "IGUI_ItemCat_" .. categoryName then
-			-- 如果没有找到对应的翻译文本，使用原始分类名
-			self.categoryCombo:addOption(categoryName)
-		else
-			self.categoryCombo:addOption(displayName)
-		end
+		local displayName = self.dataManager:getCategoryDisplayName(categoryName)
+		self.categoryCombo:addOption(displayName)
 	end
 	
 	-- 默认选择"所有分类"
 	self.categoryCombo.selected = 1
 	
-	-- 显示所有物品
-	self:filterItemsBySearch("")
+	-- 初始显示所有商品
+	self:applyFiltersAndUpdateView()
 end
 
-
-
--- **************************************************************************************
--- 分类选择改变事件
--- **************************************************************************************
-
+-- **********************************************************************************
+-- 应用筛选条件并更新视图
+-- **********************************************************************************
+function ISSimpleShop:applyFiltersAndUpdateView()
+	-- 获取当前筛选条件
+	local searchText = self.searchBox:getInternalText()
+	local selectedCategoryName = self.categoryCombo:getOptionText(self.categoryCombo.selected)
+	
+	-- 将显示名称转换为内部分类名称
+	local category = "all"
+	if selectedCategoryName ~= getText("UI_SimpleShop_AllCategories") then
+		for _, catName in ipairs(self.dataManager:getCategoryNames()) do
+			if catName ~= "all" then
+				local displayName = self.dataManager:getCategoryDisplayName(catName)
+				if displayName == selectedCategoryName then
+					category = catName
+					break
+				end
+			end
+		end
+	end
+	
+	-- 应用筛选条件到数据管理器
+	self.dataManager:applyFilters(category, searchText)
+	
+	-- 更新视图
+	self:updateItemListView()
+end
 
 -- **********************************************************************************
--- 根据搜索文本筛选物品
+-- 更新物品列表视图
 -- **********************************************************************************
-function ISSimpleShop:filterItemsBySearch(searchText)
+function ISSimpleShop:updateItemListView()
 	-- 清空当前列表
 	self.itemList:clear()
 	
-	local itemsToShow
-	local selectedCategory = self.categoryCombo:getOptionText(self.categoryCombo.selected)
+	-- 从数据管理器获取筛选后的商品数据
+	local filteredItems = self.dataManager:getFilteredItems()
 	
-	-- 首先根据分类筛选
-	if not selectedCategory or selectedCategory == getText("UI_SimpleShop_AllCategories") then
-		itemsToShow = self.allItems
-	else
-		-- 显示指定分类的物品
-		local originalCategoryName = selectedCategory
-		for catName, items in pairs(self.categories) do
-			local displayName = getText("IGUI_ItemCat_" .. catName)
-			if displayName == selectedCategory or catName == selectedCategory then
-				originalCategoryName = catName
-				break
-			end
-		end
-		itemsToShow = self.categories[originalCategoryName] or {}
-	end
-	
-	-- 如果没有搜索文本，直接显示分类筛选后的结果
-	if not searchText or searchText == "" then
-		for _, listItem in ipairs(itemsToShow) do
-			self.itemList:addItem(listItem.text, listItem)
-		end
-	else
-		-- 根据搜索文本进一步筛选
-		searchText = string.lower(searchText)
-		for _, listItem in ipairs(itemsToShow) do
-			local itemName = string.lower(listItem.itemName)
-			if string.find(itemName, searchText, 1, true) then
-				self.itemList:addItem(listItem.text, listItem)
-			end
-		end
+	-- 添加商品到列表
+	for _, itemData in ipairs(filteredItems) do
+		self.itemList:addItem(itemData.displayName, itemData)
 	end
 	
 	-- 重置选择
