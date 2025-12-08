@@ -39,7 +39,7 @@ function SimpleShopDataManager:initializeItems()
                 itemName = item:getDisplayName(),
                 icon = item:getTexture(),
                 category = category,
-                displayName = item:getDisplayName() .. " - $" .. tostring(cost)
+                displayName = item:getDisplayName()
             }
             
             -- 添加到所有商品列表
