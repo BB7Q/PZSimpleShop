@@ -78,6 +78,8 @@ SimpleShopItems = {
 ["物品ID"] = 价格, -- 物品名称
 [/code]
 
+游戏原版物品ID可以在PZ Wiki查看：[url=https://pzwiki.net/wiki/Item]https://pzwiki.net/wiki/Item[/url]
+
 [b]创建自定义配置模组[/b]
 为了避免在模组更新时丢失配置，建议创建一个单独的配置模组：
 
@@ -237,6 +239,8 @@ The shop supports adding items from other mods, and even if items don't exist, i
 [code]
 ["ItemID"] = Price, -- Item Name
 [/code]
+
+Vanilla game item IDs can be found on the PZ Wiki: [url=https://pzwiki.net/wiki/Item]https://pzwiki.net/wiki/Item[/url]
 
 [b]Creating a Custom Configuration Mod[/b]
 To avoid losing configurations when the mod updates, it's recommended to create a separate configuration mod:
