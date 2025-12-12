@@ -103,9 +103,9 @@ MyShopConfig/
 [code]
 name=My Shop Config
 id=MyShopConfig
+require=\SimpleShop
 description=Custom configuration for SimpleShop
 poster=poster.png
-depends=SimpleShop
 [/code]
 
 4. 在你的配置文件中覆盖所需值：
@@ -265,9 +265,9 @@ Note: To ensure compatibility with game version B42, you need to create a 42 fol
 [code]
 name=My Shop Config
 id=MyShopConfig
+require=\SimpleShop
 description=Custom configuration for SimpleShop
 poster=poster.png
-depends=SimpleShop
 [/code]
 
 4. Override needed values in your configuration files:
