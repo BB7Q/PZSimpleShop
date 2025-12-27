@@ -152,7 +152,7 @@ function ISSimpleShop:create()
 		
 		-- 绘制图标
 		if item.item.icon then
-			self:drawTexture(item.item.icon, 10, iconY, 1, 30, 30, 1, 1, 1, 1)
+			self:drawTexture(item.item.icon, 10, iconY, 1, 30, 30, 1)
 		end
 		
 		-- 绘制物品名称
