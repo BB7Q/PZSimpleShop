@@ -1,6 +1,7 @@
 require "ISUI/ISCollapsableWindow"
 require "SimpleShop"
 require "SimpleShopDataManager"
+require "SimpleShopClientCommands"
 
 ISSimpleShop = ISCollapsableWindow:derive("ISSimpleShop");
 
@@ -200,6 +201,17 @@ function ISSimpleShop:onBuyMouseDown(quantity)
 		local selectedItem = self.itemList.items[self.itemList.selected]
 		if selectedItem and selectedItem.item then
 			local totalCost = selectedItem.item.cost * quantity
+			
+			-- 检查是否为联机模式（连接到远程服务器）
+			if isClient() then
+				-- 联机模式：发送请求到服务器
+				if SimpleShopClientCommands.SendPurchaseRequest(selectedItem.item.itemType, quantity, totalCost) then
+					-- 请求已发送，等待服务器响应
+					return
+				end
+			end
+			
+			-- 单人模式或主机模式：本地处理
 			-- 使用新的API检查是否有足够金钱
 			if SimpleShop.HasEnoughMoney(totalCost) then
 				-- 使用新的API扣除金钱
@@ -212,6 +224,8 @@ function ISSimpleShop:onBuyMouseDown(quantity)
 						self.moneyLabel.name = getText("UI_SimpleShop_Money") .. ": " .. newMoney;
 					end
 				end
+			else
+				-- 金钱不足提示
 			end
 		end
 	end

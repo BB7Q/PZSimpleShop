@@ -117,6 +117,13 @@ end
 -- 当玩家攻击结束时触发，判断玩家是否有击杀僵尸，有就加钱
 -- **************************************************************************************
 SimpleShop.onPlayerAttackFinished = function(player,handWeapon)
+	-- 联机模式下，击杀奖励由服务端处理
+	if isClient() then
+		-- 联机模式：服务端会处理击杀奖励和金钱增加
+		return
+	end
+	
+	-- 单人模式或主机模式：本地处理
 	local playerIndex = SimpleShop.getCurrentPlayerIndexNum();
 	local playerNewKills = player:getZombieKills();
 	local newCount = playerNewKills - SimpleShop.zombieKills[playerIndex];
@@ -152,6 +159,9 @@ SimpleShop.init = function()
 	Events.OnFillWorldObjectContextMenu.Add(SimpleShop.doWorldContextMenu);
 	-- 注册僵尸击杀事件
 	Events.OnPlayerAttackFinished.Add(SimpleShop.onPlayerAttackFinished);
+	
+	-- 加载客户端网络命令模块（联机支持）
+	require "SimpleShopClientCommands"
 end
 
 -- **************************************************************************************
