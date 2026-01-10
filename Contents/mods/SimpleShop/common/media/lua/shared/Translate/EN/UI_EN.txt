@@ -7,9 +7,4 @@ UI_EN = {
 	UI_SimpleShop_NotEnoughMoney = "Not enough money",
 	UI_optionscreen_binding_OpenSimpleShop = "Open shop",
 	UI_SimpleShop_AllCategories = "All Categories",
-	IGUI_PurchaseSuccess = "Purchase successful!",
-	IGUI_PurchaseFailed = "Purchase failed!",
-	IGUI_InsufficientFunds = "Insufficient funds!",
-	IGUI_ItemAddFailed = "Failed to add items!",
-	IGUI_KillReward = "Kill reward",
 }

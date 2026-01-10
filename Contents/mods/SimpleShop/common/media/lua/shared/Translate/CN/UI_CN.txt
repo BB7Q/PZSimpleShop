@@ -7,9 +7,4 @@ UI_CN = {
 	UI_SimpleShop_NotEnoughMoney = "金钱不足",
 	UI_optionscreen_binding_OpenSimpleShop = "打开商店",
 	UI_SimpleShop_AllCategories = "所有分类",
-	IGUI_PurchaseSuccess = "购买成功!",
-	IGUI_PurchaseFailed = "购买失败!",
-	IGUI_InsufficientFunds = "金钱不足!",
-	IGUI_ItemAddFailed = "添加物品失败!",
-	IGUI_KillReward = "击杀奖励",
 }
