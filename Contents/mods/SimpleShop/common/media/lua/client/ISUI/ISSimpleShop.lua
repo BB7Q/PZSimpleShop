@@ -87,33 +87,51 @@ function ISSimpleShop:create()
 	y = y + 30;
 
 	-- 在底部添加按钮区域，居中显示
-	local buttonWidth = 90; -- 增加按钮宽度
-	local buttonHeight = 30; -- 增加按钮高度
-	local buttonSpacing = 15; -- 增加按钮间距
-	local totalButtonWidth = buttonWidth * 2 + buttonSpacing;
+	local buttonWidth = 80; -- 调整按钮宽度以适应4个按钮
+	local buttonHeight = 30; -- 按钮高度
+	local buttonSpacing = 10; -- 按钮间距
+	local totalButtonWidth = buttonWidth * 4 + buttonSpacing * 3; -- 4个按钮和3个间距
 	local buttonStartX = (self.width - totalButtonWidth) / 2; -- 居中显示
 	local buttonY = self.height - margin - buttonHeight - 10; -- 离底部与按钮高度相匹配的边距
 	
-	-- 创建购买按钮
-	self.buyButton = ISButton:new(buttonStartX, buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy"), self, self.onBuyMouseDown);
-	self.buyButton:initialise();
-	self.buyButton.internal = "buy";
-	self.buyButton.borderColor = {r=0.7, g=0.7, b=0.7, a=1};
-	self.buyButton:setFont(UIFont.Small);
-	self.buyButton:ignoreWidthChange();
-	self.buyButton:ignoreHeightChange();
-	-- 添加到主面板，确保它在滚动面板之后添加，层级更高
-	self.panel:addChild(self.buyButton);
+	-- 创建购买1个按钮
+	self.buyButton1 = ISButton:new(buttonStartX, buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x1", self, function() self:onBuyMouseDown(1) end);
+	self.buyButton1:initialise();
+	self.buyButton1.internal = "buy1";
+	self.buyButton1.borderColor = {r=0.7, g=0.7, b=0.7, a=1};
+	self.buyButton1:setFont(UIFont.Small);
+	self.buyButton1:ignoreWidthChange();
+	self.buyButton1:ignoreHeightChange();
+	self.panel:addChild(self.buyButton1);
+	
+	-- 创建购买5个按钮
+	self.buyButton5 = ISButton:new(buttonStartX + buttonWidth + buttonSpacing, buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x5", self, function() self:onBuyMouseDown(5) end);
+	self.buyButton5:initialise();
+	self.buyButton5.internal = "buy5";
+	self.buyButton5.borderColor = {r=0.7, g=0.7, b=0.7, a=1};
+	self.buyButton5:setFont(UIFont.Small);
+	self.buyButton5:ignoreWidthChange();
+	self.buyButton5:ignoreHeightChange();
+	self.panel:addChild(self.buyButton5);
+	
+	-- 创建购买10个按钮
+	self.buyButton10 = ISButton:new(buttonStartX + (buttonWidth + buttonSpacing) * 2, buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x10", self, function() self:onBuyMouseDown(10) end);
+	self.buyButton10:initialise();
+	self.buyButton10.internal = "buy10";
+	self.buyButton10.borderColor = {r=0.7, g=0.7, b=0.7, a=1};
+	self.buyButton10:setFont(UIFont.Small);
+	self.buyButton10:ignoreWidthChange();
+	self.buyButton10:ignoreHeightChange();
+	self.panel:addChild(self.buyButton10);
 
-	-- 创建关闭按钮，与购买按钮在同一行
-	self.closeButton = ISButton:new(buttonStartX + buttonWidth + buttonSpacing, buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Close"), self, self.onCloseMouseDown);
+	-- 创建关闭按钮
+	self.closeButton = ISButton:new(buttonStartX + (buttonWidth + buttonSpacing) * 3, buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Close"), self, self.onCloseMouseDown);
 	self.closeButton:initialise();
 	self.closeButton.internal = "close";
 	self.closeButton.borderColor = {r=0.7, g=0.7, b=0.7, a=1};
 	self.closeButton:setFont(UIFont.Small);
 	self.closeButton:ignoreWidthChange();
 	self.closeButton:ignoreHeightChange();
-	-- 添加到主面板，确保它在滚动面板之后添加，层级更高
 	self.panel:addChild(self.closeButton);
 
 	-- 计算可用空间，预留边距和按钮空间
@@ -158,8 +176,8 @@ function ISSimpleShop:create()
 		-- 绘制物品名称
 		self:drawText(item.item.itemName, 60, textY, 1, 1, 1, 1, UIFont.Small)
 		
-		-- 绘制价格
-		self:drawText("$" .. tostring(item.item.cost), self:getWidth() - 60, textY, 1, 1, 0, 1, UIFont.Small)
+		-- 绘制价格（向左移动避免数字过大显示不全）
+		self:drawText("$" .. tostring(item.item.cost), self:getWidth() - 100, textY, 1, 1, 0, 1, UIFont.Small)
 		
 		-- 绘制分类信息（如果可用）
 		if item.item.category then
@@ -176,16 +194,18 @@ function ISSimpleShop:create()
 	self.panel:addChild(self.itemList)
 end
 
-function ISSimpleShop:onBuyMouseDown(button, x, y)
-	if button.internal == "buy" and self.itemList.selected >= 0 then
+function ISSimpleShop:onBuyMouseDown(quantity)
+	quantity = quantity or 1
+	if self.itemList.selected >= 0 then
 		local selectedItem = self.itemList.items[self.itemList.selected]
 		if selectedItem and selectedItem.item then
+			local totalCost = selectedItem.item.cost * quantity
 			-- 使用新的API检查是否有足够金钱
-			if SimpleShop.HasEnoughMoney(selectedItem.item.cost) then
+			if SimpleShop.HasEnoughMoney(totalCost) then
 				-- 使用新的API扣除金钱
-				if SimpleShop.RemovePlayerMoney(selectedItem.item.cost) then
-					-- 添加物品到玩家背包
-					self.char:getInventory():AddItem(selectedItem.item.itemType);
+				if SimpleShop.RemovePlayerMoney(totalCost) then
+					-- 批量添加物品到玩家背包
+					self.char:getInventory():AddItems(selectedItem.item.itemType, quantity);
 					-- 使用新的API获取更新后的金钱并更新显示
 					local newMoney = SimpleShop.GetPlayerMoney();
 					if self.moneyLabel and newMoney ~= nil then
