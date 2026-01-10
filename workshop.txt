@@ -1,6 +1,161 @@
 version=1
 id=3619356125
 title=SimpleShop
-description=A simple shop mod for purchasing items only
+description=[h2]Introduction[/h2]
+description=SimpleShop is a practical and user-friendly shopping mod that provides players with a convenient shop interface to purchase various items in the game. Based on CoxisShop and redesigned with simplicity in mind, this mod focuses solely on purchasing functionality, helping you easily obtain essential supplies in the post-apocalyptic world. The item list fully supports items from other mods, and even if items don't exist, it doesn't matter - the mod will automatically detect and ensure only existing items are displayed. Its straightforward design makes it compatible with other mods, enhancing your overall gaming experience.
+description=
+description=[h2]Key Features[/h2]
+description=[list]
+description=    [*] Shop interface - Scrollable list display with category filtering and search functionality
+description=    [*] Currency system - Earn money by killing zombies
+description=    [*] Death inheritance - Keep all money after player death
+description=    [*] Right-click menu - Right-click in the world or inventory and select "Open Shop"
+description=    [*] Multi-language support - Built-in Chinese and English interface
+description=    [*] Configurable - Support for custom initial money and item prices
+description=[/list]
+description=
+description=[h2]How to Use[/h2]
+description=[list]
+description=    [*] Open shop: Right-click in the world or inventory and select "Open Shop"
+description=    [*] Purchase items: Open the shop interface, click the item you want to buy, then click the "Buy" button
+description=    [*] Search items: Use the search box to quickly find items you need
+description=    [*] Category filter: Use the dropdown menu to browse items by category
+description=    [*] Earn money: Get money rewards by killing zombies, new characters start with initial funds
+description=[/list]
+description=
+description=[h2]Configuration Options[/h2]
+description=[list]
+description=    [*] Initial money: 100 (can be modified in SimpleShopBasic.lua)
+description=    [*] Kill reward: Get 10 money for each zombie killed
+description=    [*] Purchasable items: Including basic survival supplies, medical supplies, tools, weapons, building materials, and ammunition
+description=[/list]
+description=
+description=[h3]Configuration Files Location[/h3]
+description=Mod configuration files are located at: [code]SimpleShop/common/media/lua/shared/[/code]
+description=
+description=[b]Basic Configuration (SimpleShopBasic.lua)[/b]
+description=[code]
+description=SimpleShopBasic = {
+description=    ["initialMoney"] = 100, -- Initial money for new characters
+description=    ["zombieKillAmount"] = 10, -- Money earned per zombie kill
+description=}
+description=[/code]
+description=
+description=[b]Item Price Configuration (SimpleShopItems.lua)[/b]
+description=[code]
+description=SimpleShopItems = {
+description=    -- Basic Survival Supplies
+description=    ["Base.Bread"] = 75,               -- Bread
+description=    ["Base.Apple"] = 25,               -- Apple
+description=    ["Base.Milk"] = 60,                -- Milk
+description=    -- Medical Supplies
+description=    ["Base.Bandage"] = 150,            -- Bandage
+description=    ["Base.PillsBeta"] = 200,          -- Pills
+description=    ["Base.Disinfectant"] = 180,       -- Disinfectant
+description=    -- Tools
+description=    ["Base.Hammer"] = 300,             -- Hammer
+description=    ["Base.Axe"] = 500,                -- Axe
+description=    ["Base.Saw"] = 400,                -- Saw
+description=    ["Base.Screwdriver"] = 200,        -- Screwdriver
+description=    -- Weapons
+description=    ["Base.BaseballBat"] = 400,        -- Baseball Bat
+description=    -- Building Materials
+description=    ["Base.Nails"] = 50,               -- Nails
+description=    -- Ammunition
+description=    ["Base.Bullets9mmBox"] = 100,      -- 9mm Bullet Box
+description=    ["Base.Bullets38Box"] = 175,       -- .38 Bullet Box
+description=    ["Base.Bullets44Box"] = 190,       -- .44 Bullet Box
+description=    ["Base.223Box"] = 300,             -- .223 Box
+description=    ["Base.308Box"] = 300,             -- .308 Box
+description=    ["Base.ShotgunShellsBox"] = 450,   -- Shotgun Shells Box
+description=    ["Base.Bullets45Box"] = 500,       -- .45 Bullet Box
+description=    ["Base.556Box"] = 600,             -- 5.56 Box
+description=}
+description=[/code]
+description=
+description=[b]Adding Custom Items[/b]
+description=The shop supports adding items from other mods, and even if items don't exist, it's not a problem - the mod will automatically detect and only display existing items. To add new items to the shop, simply add a new line in SimpleShopItems.lua:
+description=[code]
+description=["ItemID"] = Price, -- Item Name
+description=[/code]
+description=
+description=Vanilla game item IDs can be found on the PZ Wiki: [url=https://pzwiki.net/wiki/Item]https://pzwiki.net/wiki/Item[/url]
+description=
+description=[b]Creating a Custom Configuration Mod[/b]
+description=To avoid losing configurations when the mod updates, it's recommended to create a separate configuration mod:
+description=
+description=1. Create a new mod folder
+description=2. Create the following file structure within it:
+description=[code]
+description=MyShopConfig/
+description=├── 42/
+description=│   └── mod.info
+description=└── common/
+description=    └── media/
+description=        └── lua/
+description=            └── shared/
+description=                ├── SimpleShopBasic.lua
+description=                └── SimpleShopItems.lua
+description=[/code]
+description=
+description=Note: To ensure compatibility with game version B42, you need to create a 42 folder. The mod.info file only needs to be placed in the 42 folder.
+description=
+description=3. Add to mod.info:
+description=[code]
+description=name=My Shop Config
+description=id=MyShopConfig
+description=require=\SimpleShop
+description=description=Custom configuration for SimpleShop
+description=poster=poster.png
+description=[/code]
+description=
+description=4. Override needed values in your configuration files:
+description=[code]
+description=-- SimpleShopBasic.lua
+description=SimpleShopBasic = {
+description=    ["initialMoney"] = 100, -- Initial money
+description=    ["zombieKillAmount"] = 10, -- Money earned per zombie kill
+description=}
+description=
+description=-- SimpleShopItems.lua
+description=SimpleShopItems = {
+description=    -- Your custom item prices
+description=    ["Base.Bread"] = 50, -- Bread
+description=    ["Base.CustomItem"] = 250, -- Custom item
+description=}
+description=[/code]
+description=
+description=5. Make sure your configuration mod loads after SimpleShop in the game launcher
+description=
+description=This method allows you to keep your custom configurations while maintaining mod updates.
+description=
+description=[h2]API Interface[/h2]
+description=SimpleShop provides the following APIs for other mods to call to modify player money:
+description=
+description=[h3]Get Player Money[/h3]
+description=[code]
+description=local money = SimpleShop.GetPlayerMoney(playerIndex)
+description=[/code]
+description=Get the current amount of money for the specified player, or get the current player's money if playerIndex is not specified.
+description=
+description=[h3]Add Player Money[/h3]
+description=[code]
+description=SimpleShop.AddPlayerMoney(amount, playerIndex)
+description=[/code]
+description=Add money to the specified player, amount must be a positive number.
+description=
+description=[h3]Remove Player Money[/h3]
+description=[code]
+description=SimpleShop.RemovePlayerMoney(amount, playerIndex)
+description=[/code]
+description=Deduct money from the specified player, amount must be a positive number and the player must have sufficient balance.
+description=
+description=[h3]Check Player Money[/h3]
+description=[code]
+description=SimpleShop.HasEnoughMoney(amount, playerIndex)
+description=[/code]
+description=Check if the specified player has enough money.
+description=
+description=These methods can be used to implement features such as quest rewards, custom shops, or any functionality that requires modifying player money.
 tags=Build 42;Balance;Food;Interface
 visibility=public
