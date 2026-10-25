@@ -101,8 +101,10 @@ SimpleShop/
 │           │               ├── SimpleShopBasic.lua     -- 基础设置
 │           │               ├── SimpleShopItems.lua     -- 物品配置
 │           │               └── Translate/
-│           │                   ├── CN/UI_CN.txt        -- 中文翻译
-│           │                   └── EN/UI_EN.txt        -- 英文翻译
+│           │                   ├── CN/UI.json          -- 中文界面翻译
+│           │                   ├── CN/Mod.json         -- 中文名称/描述
+│           │                   ├── EN/UI.json          -- 英文界面翻译（其他语言回退）
+│           │                   └── EN/Mod.json         -- 英文名称/描述
 ├── icon.svg                              -- 模组图标
 ├── preview.png                           -- 预览图片
 └── README.md                            -- 项目说明
