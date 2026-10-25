@@ -66,9 +66,6 @@ SimpleShopItems = {
 [/code]
 完整清单见文件；添加物品只需按 \["物品ID"\] = 价格 追加一行，物品不存在会被自动忽略。原版物品 ID 见 [url=https://pzwiki.net/wiki/Item]PZ Wiki[/url]。
 
-[h3]推荐：单独的配置模组[/h3]
-把 SimpleShopBasic.lua / SimpleShopItems.lua 放进独立模组（[b]42/mod.info[/b] + [b]common/media/lua/shared/[/b]），mod.info 里写 [b]require=\SimpleShop[/b]，并让它在加载顺序里排在 SimpleShop 之后。这样更新本 mod 时自己的配置不会丢。
-
 [h2]API 接口[/h2]
 [code]
 SimpleShop.GetPlayerMoney(playerIndex)            -- 查询金额
@@ -157,9 +154,6 @@ SimpleShopItems = {
 }
 [/code]
 See the file for the full list; to add an item just append \["ItemID"\] = Price - missing items are ignored automatically. Vanilla item IDs: [url=https://pzwiki.net/wiki/Item]PZ Wiki[/url].
-
-[h3]Recommended: a Separate Config Mod[/h3]
-Put SimpleShopBasic.lua / SimpleShopItems.lua into your own mod ([b]42/mod.info[/b] + [b]common/media/lua/shared/[/b]), add [b]require=\SimpleShop[/b] to mod.info, and load it after SimpleShop. Your configuration then survives mod updates.
 
 [h2]API Interface[/h2]
 [code]
