@@ -1,4 +1,4 @@
 {
     "name": "SimpleShop",
-    "description": "A simple shop mod for purchasing items only"
+    "description": "SimpleShop: open the shop from the floating balance panel on the right (key bind and optional right-click menu also supported); spend money earned from zombie kills on supplies, with category filters, search and support for other mods' items."
 }

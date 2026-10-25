@@ -9,14 +9,16 @@ SimpleShop 是一个简洁的购物 mod，参考 CoxisShop 简化而来，专注
     [*] 游戏内定价 - 管理员从全部物品脚本（含其他 mod）中挑选物品设价，无需改代码
     [*] 商品顺序 - 定价窗口里"置顶/上移/下移/置底"自定义陈列顺序，随存档保存
     [*] 货币系统 - 击杀僵尸获得金钱，死亡后保留全部金钱
-    [*] 打开方式 - 右键"打开商店"，或在 选项 → 模组 → 简易商店 里绑定快捷键
+    [*] 悬浮余额 - 画面右侧常驻的余额面板（左侧购物图标），点击直接开/关商店，按住可拖到任意位置
+    [*] 打开方式 - 点击画面右侧的悬浮余额面板，或在 选项 → 模组 → 简易商店 里绑定快捷键 / 开启右键菜单
     [*] 权限控制 - 沙箱选项决定是否允许配置商品，玩家可自行决定是否显示"管理商品"按钮
     [*] 可配置 - 初始金钱、击杀奖励、默认物品清单；内置中英文界面
 [/list]
 
 [h2]如何使用[/h2]
 [list]
-    [*] 打开商店：世界界面或物品栏右键"打开商店"，也可用快捷键（默认不绑定）
+    [*] 打开商店：左键点击悬浮余额面板即可开/关；也可绑定快捷键，或勾选「显示「打开商店」右键菜单」后用右键打开
+    [*] 悬浮余额面板：默认在画面右侧中间，左键点一下开/关商店，按住拖动可换位置（位置随角色保存）
     [*] 购买：点选物品后点"购买"
     [*] 筛选/排序：分类下拉 + 搜索框 + 排序下拉（默认"商店顺序"，可切名称/价格），三者可叠加
     [*] 获得金钱：击杀僵尸有奖励，新角色有初始资金，死亡不丢钱
@@ -37,7 +39,7 @@ SimpleShop 是一个简洁的购物 mod，参考 CoxisShop 简化而来，专注
 [list]
     [*] 初始金钱 100、击杀奖励 10（见 SimpleShopBasic.lua）
     [*] 沙箱选项 - 允许配置商品（默认关闭；联机时为服务端权威校验）
-    [*] 模组选项 - 显示「管理商品」按钮、打开商店/管理商品快捷键（默认关闭/不绑定，改完立即生效）
+    [*] 模组选项 - 悬浮余额面板（默认开启）、右键菜单（默认关闭）、显示「管理商品」按钮（默认关闭）、打开商店/管理商品快捷键（默认不绑定），改完立即生效
     [*] 默认商品清单 - SimpleShopItems.lua（仅首次建表或"恢复默认"时生效）
 [/list]
 
@@ -98,14 +100,16 @@ SimpleShop is a lightweight shopping mod based on CoxisShop, focused on buying i
     [*] In-game pricing - Admins pick any item script (including other mods' items) and set a price, no code needed
     [*] Custom item order - Reorder items with "Top / Up / Down / Bottom" in the pricing window; saved with the world
     [*] Currency system - Earn money by killing zombies, keep it all after death
-    [*] How to open - Right-click "Open Shop", or bind a key in Options -> Mods -> SimpleShop
+    [*] Floating balance - A small balance panel on the right side of the screen (shopping cart icon); click to open the shop, drag it anywhere
+    [*] How to open - Click the floating balance panel, or bind a key / enable the right-click menu in Options -> Mods -> SimpleShop
     [*] Permission control - A sandbox option decides whether item configuration is allowed; each player chooses whether to show the "Manage Items" button
     [*] Configurable - Initial money, kill reward, default item list; Chinese and English built in
 [/list]
 
 [h2]How to Use[/h2]
 [list]
-    [*] Open shop: right-click "Open Shop" in the world or inventory, or use your key bind (unbound by default)
+    [*] Open shop: left-click the floating balance panel, or bind a key, or tick "Show Open Shop in the right-click menu" and use right-click
+    [*] Floating balance panel: sits at the right side of the screen by default; click it to open/close the shop, drag it to move (the position is saved with your character)
     [*] Purchase: select an item and click "Buy"
     [*] Filter / sort: category dropdown + search box + sort dropdown (defaults to "Shop order", switchable to name/price); they stack
     [*] Earn money: kill zombies for rewards, new characters start with funds, death keeps your money
@@ -126,7 +130,7 @@ SimpleShop is a lightweight shopping mod based on CoxisShop, focused on buying i
 [list]
     [*] Initial money 100 and kill reward 10 (see SimpleShopBasic.lua)
     [*] Sandbox option - Allow item configuration (off by default; server-authoritative in multiplayer)
-    [*] Mod options - Show "Manage Items" button, key binds for opening the shop / managing items (off / unbound by default, applied immediately)
+    [*] Mod options - Floating balance panel (on), right-click menu (off), Show "Manage Items" button (off), key binds for opening the shop / managing items (unbound); applied immediately
     [*] Default item list - SimpleShopItems.lua (used only when the table is first created or "Reset Default" is clicked)
 [/list]
 

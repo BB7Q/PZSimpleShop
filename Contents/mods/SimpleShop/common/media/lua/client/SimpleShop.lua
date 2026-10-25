@@ -15,6 +15,8 @@ SimpleShop.playerMoneyTemp = {};
 SimpleShop.playerDeathCountTemp = {};
 -- 玩家击杀僵尸数数组
 SimpleShop.zombieKills = {};
+-- 悬浮余额面板对象（客户端 UI，显示当前金钱，点击打开商店）
+SimpleShop.hud = nil;
 
 -- **************************************************************************************
 -- 初始化玩家金钱
@@ -108,6 +110,115 @@ SimpleShop.rebuildUpgradeScreens = function()
 	end
 end
 
+-- **************************************************************************************
+-- 悬浮余额面板：常驻显示当前金钱，点击打开/关闭商店，按住可拖拽
+--   默认位置在画面右侧中间；拖动后的位置记在玩家 ModData（随存档保存）
+-- **************************************************************************************
+-- 默认位置与画面右边缘的间距
+SimpleShop.HUD_EDGE_MARGIN = 16;
+
+-- 千分位格式化：1234567 -> "1,234,567"（负数也能正确出符号）
+SimpleShop.formatMoney = function(value)
+	local number = math.floor(tonumber(value) or 0);
+	local sign = "";
+	local text = tostring(number);
+	if string.sub(text, 1, 1) == "-" then
+		sign = "-";
+		text = string.sub(text, 2);
+	end
+	local formatted = string.reverse(string.gsub(string.reverse(text), "(%d%d%d)", "%1,"));
+	if string.sub(formatted, 1, 1) == "," then
+		formatted = string.sub(formatted, 2);
+	end
+	return sign .. formatted;
+end;
+
+-- 打开/关闭商店窗口（悬浮面板点击时调用）
+SimpleShop.toggleShopWindow = function(playerNum)
+	if playerNum == nil then return end
+	local player = getSpecificPlayer(playerNum);
+	if not player or not player:isAlive() then return end
+	showUpgradeScreen(playerNum);
+end;
+
+-- 创建悬浮面板；位置优先取上次拖拽保存的值，没有就贴右侧居中
+SimpleShop.createHud = function(playerNum)
+	if playerNum == nil then return end
+	require "ISUI/ISSimpleShopHud";
+
+	local hud = ISSimpleShopHud:new(playerNum, 0, 0);
+
+	local player = getSpecificPlayer(playerNum);
+	local modData = player and player:getModData() or nil;
+	local savedX = modData and tonumber(modData.SimpleShopHudX) or nil;
+	local savedY = modData and tonumber(modData.SimpleShopHudY) or nil;
+
+	if savedX and savedY then
+		hud:setX(math.floor(savedX));
+		hud:setY(math.floor(savedY));
+	else
+		local screenLeft = getPlayerScreenLeft and getPlayerScreenLeft(playerNum) or 0;
+		local screenTop = getPlayerScreenTop and getPlayerScreenTop(playerNum) or 0;
+		local screenWidth = getPlayerScreenWidth(playerNum) or 0;
+		local screenHeight = getPlayerScreenHeight(playerNum) or 0;
+		hud:setX(math.floor(screenLeft + screenWidth - hud.width - SimpleShop.HUD_EDGE_MARGIN));
+		hud:setY(math.floor(screenTop + (screenHeight - hud.height) / 2));
+	end
+
+	hud:initialise();
+	-- 旧分辨率下保存的坐标可能已经出屏，统一收回画面内
+	hud:clampToScreen();
+	hud:addToUIManager();
+	SimpleShop.hud = hud;
+	return hud;
+end;
+
+SimpleShop.destroyHud = function()
+	local hud = SimpleShop.hud;
+	SimpleShop.hud = nil;
+	if not hud then return end
+	hud:setVisible(false);
+	hud:removeFromUIManager();
+end;
+
+-- 首次进入游戏、以及死亡后重新创建角色时调用（重复调用无副作用）
+SimpleShop.initHud = function()
+	if not getPlayer() then return end
+	if not SimpleShop.getShowHudOption() then return end
+
+	local playerNum = SimpleShop.getCurrentPlayerIndexNum();
+	if playerNum == nil then return end
+	local player = getSpecificPlayer(playerNum);
+	if not player or not player:isAlive() then return end
+
+	-- 已经有一块属于当前玩家的面板就不重建
+	if SimpleShop.hud and SimpleShop.hud.playerNum == playerNum and SimpleShop.hud:getIsVisible() then
+		return;
+	end
+
+	SimpleShop.destroyHud();
+	SimpleShop.createHud(playerNum);
+end;
+
+-- 模组配置"显示悬浮余额面板"：优先取 onChangeApply 传进来的新值（原生回调早于写回）
+SimpleShop.showHudOverride = nil;
+SimpleShop.getShowHudOption = function()
+	if SimpleShop.showHudOverride ~= nil then
+		return SimpleShop.showHudOverride == true;
+	end
+	return SimpleShop.getModOption("ShowHud", true) == true;
+end;
+
+-- 配置改完后立即生效：开就建面板，关就销毁
+SimpleShop.applyHudVisibility = function()
+	if not getPlayer() then return end
+	if SimpleShop.getShowHudOption() then
+		SimpleShop.initHud();
+	else
+		SimpleShop.destroyHud();
+	end
+end;
+
 
 
 -- **************************************************************************************
@@ -138,9 +249,11 @@ end
 
 -- **************************************************************************************
 -- 模组配置项（选项 -> 模组 -> 简易商店）：客户端设置，改完即生效
+--   ShowHud : 是否显示悬浮余额面板（默认显示）
+--   ShowContextMenu : 是否显示"打开商店"右键菜单项（默认关闭）
 --   ShowManageButton : 是否在商店窗口里显示"管理商品"按钮（默认关闭）
 --   OpenSimpleShop / ManageSimpleShop : 快捷键（默认不绑定）
---   注意：按钮是否真的出现还要看沙箱选项"允许配置商品"，两者是与关系
+--   注意：管理按钮是否真的出现还要看沙箱选项"允许配置商品"，两者是与关系
 -- **************************************************************************************
 SimpleShop.modOptionsId = "SimpleShop";
 
@@ -154,6 +267,26 @@ SimpleShop.registerModOptions = function()
 		options = PZAPI.ModOptions:create(SimpleShop.modOptionsId, "UI_SimpleShop_ModOptions");
 		-- 顶部说明：告诉玩家按钮最终受沙箱开关制约，避免开了却在游戏里找不到按钮
 		options:addDescription("UI_SimpleShop_OptHint");
+	end
+
+	-- 顺序：入口相关（悬浮面板 / 右键菜单）在前，管理按钮与快捷键在后
+	local hudOption = options:getOption("ShowHud");
+	if not hudOption then
+		hudOption = options:addTickBox("ShowHud",
+			"UI_SimpleShop_OptShowHud", true, "UI_SimpleShop_OptShowHud_tt");
+		function hudOption.onChangeApply(option, value)
+			SimpleShop.showHudOverride = value and true or false;
+			SimpleShop.applyHudVisibility();
+		end
+	end
+
+	local menuOption = options:getOption("ShowContextMenu");
+	if not menuOption then
+		menuOption = options:addTickBox("ShowContextMenu",
+			"UI_SimpleShop_OptShowContextMenu", false, "UI_SimpleShop_OptShowContextMenu_tt");
+		function menuOption.onChangeApply(option, value)
+			SimpleShop.showContextMenuOverride = value and true or false;
+		end
 	end
 
 	local showOption = options:getOption("ShowManageButton");
@@ -220,6 +353,15 @@ SimpleShop.canShowManageButton = function(playerNum)
 		return false;
 	end
 	return SimpleShop.canAccessAdminPanel(playerNum);
+end
+
+-- 本机"显示右键菜单"开关（默认关闭）：开启后世界/物品栏右键里才有"打开商店"
+SimpleShop.showContextMenuOverride = nil;
+SimpleShop.getShowContextMenuOption = function()
+	if SimpleShop.showContextMenuOverride ~= nil then
+		return SimpleShop.showContextMenuOverride == true;
+	end
+	return SimpleShop.getModOption("ShowContextMenu", false) == true;
 end
 
 -- **************************************************************************************
@@ -344,6 +486,9 @@ end
 -- 填充世界对象上下文菜单（只保留"打开商店"；商品管理走商店窗口按钮或快捷键）
 -- **************************************************************************************
 SimpleShop.doWorldContextMenu = function(playerNum, context, worldobjects)
+	-- 模组配置可关掉右键入口
+	if not SimpleShop.getShowContextMenuOption() then return end
+
 	local player = getSpecificPlayer(playerNum)
 	-- 检查玩家是否存活
 	if player:isAlive() then
@@ -364,6 +509,9 @@ end
 -- 填充库存对象上下文菜单（只保留"打开商店"；商品管理走商店窗口按钮或快捷键）
 -- **************************************************************************************
 SimpleShop.doInventoryContextMenu = function(playerNum, context, items)
+	-- 模组配置可关掉右键入口
+	if not SimpleShop.getShowContextMenuOption() then return end
+
 	local player = getSpecificPlayer(playerNum)
 	-- 检查玩家是否存活
 	if player:isAlive() then
@@ -443,6 +591,8 @@ SimpleShop.init = function()
 	if isClient() then
 		SimpleShopClientCommands.SendPricesRequest();
 	end
+	-- 悬浮余额面板
+	SimpleShop.initHud();
 end
 
 -- **************************************************************************************
@@ -461,8 +611,12 @@ SimpleShop.prepareReInit = function()
 	-- 商店面板要初始化，所以将面板对象置空
 	SimpleShop.upgradeScreen[playerIndex] = nil;
 	SimpleShop.adminScreen[playerIndex] = nil;
+	-- 死亡后先收起悬浮余额面板，复活时由 OnCreatePlayer 重建
+	SimpleShop.destroyHud();
 	-- 再次初始化玩家金钱
 	Events.OnCreatePlayer.Add(SimpleShop.InitPlayer);
+	-- 复活（新角色）后重新挂上悬浮余额面板
+	Events.OnCreatePlayer.Add(SimpleShop.initHud);
 end
 
 -- **************************************************************************************
