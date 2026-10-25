@@ -49,27 +49,62 @@ end
 -- **************************************************************************************
 -- 显示商店UI
 -- **************************************************************************************
+local function createUpgradeScreen(playerNum)
+	local screenWidth = getPlayerScreenWidth(playerNum);
+	local screenHeight = getPlayerScreenHeight(playerNum);
+	local windowWidth = 620;
+	local windowHeight = 545;
+	-- 计算中心位置
+	local x = (screenWidth - windowWidth) / 2;
+	local y = (screenHeight - windowHeight) / 2;
+	-- 初始化UI界面对象
+	SimpleShop.upgradeScreen[playerNum] = ISSimpleShop:new(x,y,windowWidth,windowHeight,playerNum, SimpleShop.settings);
+	SimpleShop.upgradeScreen[playerNum]:initialise();
+	SimpleShop.upgradeScreen[playerNum]:addToUIManager();
+	-- 初始化为false，只有为false下面的判断才会setVisible为true
+	SimpleShop.upgradeScreen[playerNum]:setVisible(false);
+end
+
+-- @return 关闭前窗口是否可见
+local function destroyUpgradeScreen(playerNum)
+	local screen = SimpleShop.upgradeScreen[playerNum];
+	if not screen then return false end
+	local wasVisible = screen:getIsVisible() and true or false;
+	screen:setVisible(false);
+	screen:removeFromUIManager();
+	SimpleShop.upgradeScreen[playerNum] = nil;
+	return wasVisible;
+end
+
 local function showUpgradeScreen(playerNum)
+	-- 沙箱/模组配置可能在会话中被改掉：缓存窗口的按钮布局对不上就重建，避免显示过期按钮
+	local existing = SimpleShop.upgradeScreen[playerNum];
+	if existing and existing.manageAllowed ~= SimpleShop.canShowManageButton(playerNum) then
+		destroyUpgradeScreen(playerNum);
+	end
+
 	if not SimpleShop.upgradeScreen[playerNum] then
-		local screenWidth = getPlayerScreenWidth(playerNum);
-		local screenHeight = getPlayerScreenHeight(playerNum);
-		local windowWidth = 620;
-		local windowHeight = 545;
-		-- 计算中心位置
-		local x = (screenWidth - windowWidth) / 2;
-		local y = (screenHeight - windowHeight) / 2;
-		-- 初始化UI界面对象
-		SimpleShop.upgradeScreen[playerNum] = ISSimpleShop:new(x,y,windowWidth,windowHeight,playerNum, SimpleShop.settings);
-		SimpleShop.upgradeScreen[playerNum]:initialise();
-		SimpleShop.upgradeScreen[playerNum]:addToUIManager();
-		-- 初始化为false，只有为false下面的判断才会setVisible为true
-		SimpleShop.upgradeScreen[playerNum]:setVisible(false);
+		createUpgradeScreen(playerNum);
 	end
 	-- 开关UI界面
 	if SimpleShop.upgradeScreen[playerNum]:getIsVisible() then
 		SimpleShop.upgradeScreen[playerNum]:setVisible(false);
 	else
 		SimpleShop.upgradeScreen[playerNum]:setVisible(true);
+	end
+end
+
+-- 配置改完后立即重建已打开的商店窗口：按钮显隐不用关掉窗口再开一次
+SimpleShop.rebuildUpgradeScreens = function()
+	if not getPlayer() then return end
+	local reopened = {};
+	for playerNum in pairs(SimpleShop.upgradeScreen or {}) do
+		if destroyUpgradeScreen(playerNum) then
+			reopened[#reopened + 1] = playerNum;
+		end
+	end
+	for _, playerNum in ipairs(reopened) do
+		showUpgradeScreen(playerNum);
 	end
 end
 
@@ -90,10 +125,108 @@ SimpleShop.CanManageItems = function(playerNum)
 end
 
 -- **************************************************************************************
+-- 沙箱配置（世界级）：选项 -> 沙箱选项 -> 简易商店
+--   AllowManageItems : 是否允许配置商品（定价/陈列顺序，默认关闭）
+--   定义见 common/media/sandbox-options.txt，运行时读取 SandboxVars.SimpleShop.<name>
+-- **************************************************************************************
+SimpleShop.getSandboxOption = function(name, default)
+	if SimpleShopItemStore and SimpleShopItemStore.getSandboxOption then
+		return SimpleShopItemStore.getSandboxOption(name, default);
+	end
+	return default;
+end
+
+-- **************************************************************************************
+-- 模组配置项（选项 -> 模组 -> 简易商店）：客户端设置，改完即生效
+--   ShowManageButton : 是否在商店窗口里显示"管理商品"按钮（默认关闭）
+--   OpenSimpleShop / ManageSimpleShop : 快捷键（默认不绑定）
+--   注意：按钮是否真的出现还要看沙箱选项"允许配置商品"，两者是与关系
+-- **************************************************************************************
+SimpleShop.modOptionsId = "SimpleShop";
+
+-- 注册模组配置项；重复调用无副作用
+SimpleShop.registerModOptions = function()
+	if PZAPI == nil or PZAPI.ModOptions == nil then return end
+	if SimpleShop.modOptionsRegistered then return end
+
+	local options = PZAPI.ModOptions:getOptions(SimpleShop.modOptionsId);
+	if not options then
+		options = PZAPI.ModOptions:create(SimpleShop.modOptionsId, "UI_SimpleShop_ModOptions");
+		-- 顶部说明：告诉玩家按钮最终受沙箱开关制约，避免开了却在游戏里找不到按钮
+		options:addDescription("UI_SimpleShop_OptHint");
+	end
+
+	local showOption = options:getOption("ShowManageButton");
+	if not showOption then
+		showOption = options:addTickBox("ShowManageButton",
+			"UI_SimpleShop_OptShowManageButton", false, "UI_SimpleShop_OptShowManageButton_tt");
+		-- 原生 ModOptions 用 option:onChangeApply(新值) 调用，且回调早于写入新值，
+		-- 所以先用回调参数落一份覆盖值，重建窗口时读到的就是新状态（改完即生效）
+		function showOption.onChangeApply(option, value)
+			SimpleShop.showManageButtonOverride = value and true or false;
+			SimpleShop.rebuildUpgradeScreens();
+		end
+	end
+
+	local none = (Keyboard and Keyboard.KEY_NONE) or 0;
+	if not options:getOption(SimpleShop.keyBindIds.openShop) then
+		options:addKeyBind(SimpleShop.keyBindIds.openShop,
+			"UI_SimpleShop_OptOpenKey", none, "UI_SimpleShop_OptOpenKey_tt");
+	end
+	if not options:getOption(SimpleShop.keyBindIds.manageItems) then
+		options:addKeyBind(SimpleShop.keyBindIds.manageItems,
+			"UI_SimpleShop_OptManageKey", none, "UI_SimpleShop_OptManageKey_tt");
+	end
+
+	SimpleShop.modOptionsRegistered = true;
+
+	-- 立即从 ModOptions.ini 回填上次保存的键位，不必先打开选项页
+	pcall(function() PZAPI.ModOptions:load(); end);
+end
+
+-- 读取配置项（缺省返回 default）
+SimpleShop.getModOption = function(id, default)
+	if PZAPI == nil or PZAPI.ModOptions == nil then return default end
+	local options = PZAPI.ModOptions:getOptions(SimpleShop.modOptionsId);
+	if not options then return default end
+	local option = options:getOption(id);
+	if not option then return default end
+	local value = option:getValue();
+	if value == nil then return default end
+	return value;
+end
+
+-- 是否允许进入商品配置：需要沙箱开关"允许配置商品"开启且有管理权限
+SimpleShop.canAccessAdminPanel = function(playerNum)
+	if not SimpleShop.getSandboxOption("AllowManageItems", false) then
+		return false;
+	end
+	return SimpleShop.CanManageItems(playerNum);
+end
+
+-- 本机"显示管理按钮"开关：优先取 onChangeApply 传进来的新值（原生回调早于写回，避免读到旧值）
+SimpleShop.showManageButtonOverride = nil;
+SimpleShop.getShowManageButtonOption = function()
+	if SimpleShop.showManageButtonOverride ~= nil then
+		return SimpleShop.showManageButtonOverride == true;
+	end
+	return SimpleShop.getModOption("ShowManageButton", false) == true;
+end
+
+-- 是否在商店窗口显示"管理商品"按钮：
+--   本机模组配置"显示管理按钮"开启 + 沙箱选项"允许配置商品"开启 + 玩家有管理权限，三者都满足
+SimpleShop.canShowManageButton = function(playerNum)
+	if not SimpleShop.getShowManageButtonOption() then
+		return false;
+	end
+	return SimpleShop.canAccessAdminPanel(playerNum);
+end
+
+-- **************************************************************************************
 -- 显示商品定价窗口
 -- **************************************************************************************
 SimpleShop.showAdminScreen = function(playerNum)
-	if not SimpleShop.CanManageItems(playerNum) then
+	if not SimpleShop.canAccessAdminPanel(playerNum) then
 		return;
 	end
 
@@ -118,6 +251,85 @@ SimpleShop.showAdminScreen = function(playerNum)
 end
 
 -- **************************************************************************************
+-- 快捷键（默认不绑定，在 选项 -> 模组 -> 简易商店 里配置）
+--   键位由原生 ModOptions 的 keybind 控件维护、存在 ModOptions.ini；
+--   这里只负责把玩家设置的值读出来和按键比对（不再往全局 keyBinding 表里插条目）
+-- **************************************************************************************
+SimpleShop.keyBindIds = {
+	openShop = "OpenSimpleShop",
+	manageItems = "ManageSimpleShop",
+};
+
+-- 读取玩家为某个动作绑定的按键；未绑定返回 nil
+SimpleShop.getKeyBind = function(id)
+	local key = SimpleShop.getModOption(id, nil);
+	if type(key) ~= "number" or key <= 0 then return nil end
+	if Keyboard and key == Keyboard.KEY_NONE then return nil end
+	return key;
+end
+
+-- 快捷键入口：打开商店（需要活着）
+SimpleShop.openShopByKey = function()
+	if not getPlayer() then return end
+
+	local playerNum = SimpleShop.getCurrentPlayerIndexNum();
+	if playerNum == nil then return end
+	local player = getSpecificPlayer(playerNum);
+	if not player or not player:isAlive() then return end
+
+	showUpgradeScreen(playerNum);
+end
+
+-- 快捷键入口：商品定价（内部会校验管理员权限）
+SimpleShop.openAdminByKey = function()
+	if not getPlayer() then return end
+
+	local playerNum = SimpleShop.getCurrentPlayerIndexNum();
+	if playerNum == nil then return end
+	local player = getSpecificPlayer(playerNum);
+	if not player or not player:isAlive() then return end
+
+	SimpleShop.showAdminScreen(playerNum);
+end
+
+-- 聊天框/输入框正在接收键盘输入时不响应快捷键（API 缺失的版本自动跳过该保护）
+SimpleShop.isTyping = function()
+	local ok, focus = pcall(function()
+		if UIManager == nil then return nil end
+		local getDefault = UIManager.getDefaultUIManager;
+		if type(getDefault) ~= "function" then return nil end
+		local manager = getDefault();
+		if not manager then return nil end
+		return manager:getKeyboardFocus();
+	end);
+	return ok and focus ~= nil;
+end
+
+SimpleShop.handleKeyPressed = function(key)
+	if key == nil then return end
+	if SimpleShop.isTyping() then return end
+
+	local openKey = SimpleShop.getKeyBind(SimpleShop.keyBindIds.openShop);
+	if openKey and key == openKey then
+		SimpleShop.openShopByKey();
+		return;
+	end
+
+	local manageKey = SimpleShop.getKeyBind(SimpleShop.keyBindIds.manageItems);
+	if manageKey and key == manageKey then
+		SimpleShop.openAdminByKey();
+	end
+end
+
+-- 主菜单/无玩家/UI 初始化阶段也可能收到按键，整体兜底避免刷错误日志
+SimpleShop.onKeyStartPressed = function(key)
+	local ok, err = pcall(SimpleShop.handleKeyPressed, key);
+	if not ok then
+		print("[SimpleShop] keybind handler error: " .. tostring(err));
+	end
+end
+
+-- **************************************************************************************
 -- 价格变化后刷新所有已打开的商店窗口
 -- **************************************************************************************
 SimpleShop.refreshAllShops = function()
@@ -129,7 +341,7 @@ SimpleShop.refreshAllShops = function()
 end
 
 -- **************************************************************************************
--- 填充世界对象上下文菜单
+-- 填充世界对象上下文菜单（只保留"打开商店"；商品管理走商店窗口按钮或快捷键）
 -- **************************************************************************************
 SimpleShop.doWorldContextMenu = function(playerNum, context, worldobjects)
 	local player = getSpecificPlayer(playerNum)
@@ -145,21 +357,11 @@ SimpleShop.doWorldContextMenu = function(playerNum, context, worldobjects)
 			option.iconTexture = iconTexture
 			option.icon = nil
 		end
-		-- 管理员：商品定价入口
-		if SimpleShop.CanManageItems(playerNum) then
-			local adminOption = context:addOption(getText("UI_SimpleShop_Manage"), nil, function()
-				SimpleShop.showAdminScreen(playerNum);
-			end);
-			if iconTexture and adminOption then
-				adminOption.iconTexture = iconTexture
-				adminOption.icon = nil
-			end
-		end
 	end
 end
 
 -- **************************************************************************************
--- 填充库存对象上下文菜单
+-- 填充库存对象上下文菜单（只保留"打开商店"；商品管理走商店窗口按钮或快捷键）
 -- **************************************************************************************
 SimpleShop.doInventoryContextMenu = function(playerNum, context, items)
 	local player = getSpecificPlayer(playerNum)
@@ -174,16 +376,6 @@ SimpleShop.doInventoryContextMenu = function(playerNum, context, items)
 		if iconTexture and option then
 			option.iconTexture = iconTexture
 			option.icon = nil
-		end
-		-- 管理员：商品定价入口
-		if SimpleShop.CanManageItems(playerNum) then
-			local adminOption = context:addOption(getText("UI_SimpleShop_Manage"), nil, function()
-				SimpleShop.showAdminScreen(playerNum);
-			end);
-			if iconTexture and adminOption then
-				adminOption.iconTexture = iconTexture
-				adminOption.icon = nil
-			end
 		end
 	end
 end
@@ -242,6 +434,8 @@ SimpleShop.init = function()
 	Events.OnFillWorldObjectContextMenu.Add(SimpleShop.doWorldContextMenu);
 	-- 注册僵尸击杀事件
 	Events.OnPlayerAttackFinished.Add(SimpleShop.onPlayerAttackFinished);
+	-- 兜底注册快捷键配置（Mod Options 可能晚于本文件加载）
+	SimpleShop.registerModOptions();
 
 	-- 加载客户端网络命令模块（联机支持）
 	require "SimpleShopClientCommands"
@@ -357,3 +551,12 @@ end
 -- **************************************************************************************
 Events.OnGameStart.Add(SimpleShop.init)
 Events.OnPlayerDeath.Add(SimpleShop.prepareReInit)
+
+-- 模组选项（快捷键）：立即尝试注册（Mod Options 已加载时），OnGameBoot 再兜底一次
+SimpleShop.registerModOptions();
+if Events.OnGameBoot then
+	Events.OnGameBoot.Add(SimpleShop.registerModOptions);
+end
+if Events.OnKeyStartPressed then
+	Events.OnKeyStartPressed.Add(SimpleShop.onKeyStartPressed);
+end

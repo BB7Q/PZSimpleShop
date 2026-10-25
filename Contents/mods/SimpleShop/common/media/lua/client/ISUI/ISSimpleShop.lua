@@ -12,14 +12,25 @@ function ISSimpleShop:initialise()
 end
 
 function ISSimpleShop:render()
+	local margin = self.margin or 20;
+
 	-- 更新显示信息
 	if self.playerLabel then
 		self.playerLabel.name = self.char:getDescriptor():getForename().." "..self.char:getDescriptor():getSurname();
 	end
-	-- 使用新的API获取玩家金钱
+	-- 商品数量紧跟在玩家名右侧（限制最大 x，避免和右侧金钱重叠）
+	if self.countLabel and self.playerLabel and self.playerLabel.name then
+		local nameWidth = getTextManager():MeasureStringX(UIFont.Medium, self.playerLabel.name);
+		local countX = margin + math.max(120, nameWidth) + 24;
+		self.countLabel:setX(math.min(countX, self.width - margin - 180));
+	end
+	-- 使用新的API获取玩家金钱，并按文字宽度右对齐
 	if self.moneyLabel then
 		local playerMoney = SimpleShop.GetPlayerMoney() or 0;
-		self.moneyLabel.name = getText("UI_SimpleShop_Money") .. ": " .. playerMoney;
+		local moneyText = getText("UI_SimpleShop_Money") .. ": " .. playerMoney;
+		self.moneyLabel.name = moneyText;
+		local moneyWidth = getTextManager():MeasureStringX(UIFont.Small, moneyText);
+		self.moneyLabel:setX(self.width - margin - moneyWidth);
 	end
 
 	-- 绘制窗口边框
@@ -41,8 +52,9 @@ function ISSimpleShop:create()
 
 	local y = 10;
 
-	-- 使用统一的边距变量
+	-- 使用统一的边距变量（render 中对齐也要用）
 	local margin = 20;
+	self.margin = margin;
 
 	-- 第一行：玩家信息和金钱（左侧）
 	self.playerLabel = ISLabel:new(margin, y, 20, "", 1, 1, 1, 1, UIFont.Medium);
@@ -50,32 +62,51 @@ function ISSimpleShop:create()
 	self.playerLabel:instantiate();
 	self.panel:addChild(self.playerLabel);
 
-	-- 金钱显示在玩家信息右侧
-	self.moneyLabel = ISLabel:new(self.width - margin - 150, y, 16, "", 1, 1, 0, 1, UIFont.Small);
+	-- 商品数量显示在玩家名右侧
+	self.countLabel = ISLabel:new(margin + 150, y + 4, 16, "", 0.8, 0.8, 0.8, 1, UIFont.Small);
+	self.countLabel:initialise();
+	self.countLabel:instantiate();
+	self.panel:addChild(self.countLabel);
+
+	-- 金钱显示在右侧（render 中按文字宽度对齐到右边缘）
+	self.moneyLabel = ISLabel:new(0, y, 16, "", 1, 1, 0, 1, UIFont.Small);
 	self.moneyLabel:initialise();
 	self.moneyLabel:instantiate();
 	self.panel:addChild(self.moneyLabel);
 
 	y = y + 30;
 
-	-- 第二行：分类选择器和搜索框并排显示
-	-- 分类选择器在左侧，占据50%宽度
-	local comboWidth = (self.width - margin * 3) * 0.5; -- 50%宽度，留出间距
-	self.categoryCombo = ISComboBox:new(margin, y - 2, comboWidth, 25);
+	-- 第二行：分类 / 排序 / 搜索 三个控件同一行，等高等距
+	--   高度统一按字体算出后三个控件共用；输入框额外显式同步 Java 控件高度，
+	--   底色与边框也统一成下拉框那一套，避免一亮一暗看起来像两个高度
+	local controlH = math.max(25, (getTextManager():getFontHeight(UIFont.Small) or 14) + 8);
+	local controlGap = 10;
+	local controlY = y - 2;
+	local controlsWidth = self.width - margin * 2 - controlGap * 2;
+	local categoryWidth = math.floor(controlsWidth * 0.34);
+	local sortWidth = math.floor(controlsWidth * 0.30);
+	local searchWidth = controlsWidth - categoryWidth - sortWidth;
+	local sortX = margin + categoryWidth + controlGap;
+	local searchX = sortX + sortWidth + controlGap;
+
+	self.categoryCombo = ISComboBox:new(margin, controlY, categoryWidth, controlH);
 	self.categoryCombo:initialise();
 	self.categoryCombo:instantiate();
+	self.categoryCombo:setHeight(controlH);
 	self.categoryCombo.font = UIFont.Small;
 	-- ISComboBox 触发 onChange(target, comboBox)，必须走 setOnChange 指定 target
 	self.categoryCombo:setOnChange(self, self.onCategorySelected);
 	self.panel:addChild(self.categoryCombo);
 	
-	-- 搜索框在右侧，占据50%宽度
-	local searchWidth = (self.width - margin * 3) * 0.5; -- 50%宽度
-	local searchX = margin + comboWidth + margin; -- 分类框宽度+间距
-	self.searchBox = ISTextEntryBox:new("", searchX, y - 2, searchWidth, 25);
+	-- 搜索框在右侧
+	self.searchBox = ISTextEntryBox:new("", searchX, controlY, searchWidth, controlH);
 	self.searchBox:initialise();
 	self.searchBox:instantiate();
-	self.searchBox.font = UIFont.Small;
+	self.searchBox:setFont(UIFont.Small);
+	self.searchBox:setHeight(controlH);
+	-- 与 ISComboBox 同一套配色（纯黑底 + 0.5 白框），否则半透明底和亮边框会显得更高
+	self.searchBox.backgroundColor = { r = 0, g = 0, b = 0, a = 1 };
+	self.searchBox.borderColor = { r = 1, g = 1, b = 1, a = 0.5 };
 	-- ISTextEntryBox 只有 onTextChangeFunction(target, box) 会被调用
 	self.searchBox.target = self;
 	self.searchBox.onTextChangeFunction = function(target, box)
@@ -83,43 +114,72 @@ function ISSimpleShop:create()
 	end
 	self.panel:addChild(self.searchBox);
 
-	y = y + 30;
+	-- 排序下拉框（与分类、搜索同一行，不换行）
+	self.sortCombo = ISComboBox:new(sortX, controlY, sortWidth, controlH);
+	self.sortCombo:initialise();
+	self.sortCombo:instantiate();
+	self.sortCombo:setHeight(controlH);
+	self.sortCombo.font = UIFont.Small;
+	self.sortCombo:setOnChange(self, self.onSortSelected);
+	self.sortCombo.tooltip = getText("UI_SimpleShop_SortTooltip");
+	self.panel:addChild(self.sortCombo);
 
-	-- 在底部添加按钮区域，居中显示
-	local buttonWidth = 80;
+	-- 在底部添加按钮区域：等宽、等间距、整体居中
 	local buttonHeight = 30;
-	local buttonSpacing = 10;
-	-- 管理员额外显示"管理商品"按钮
-	local canManage = SimpleShop.CanManageItems(self.playerId);
-	local buttonCount = canManage and 5 or 4;
-	local totalButtonWidth = buttonWidth * buttonCount + buttonSpacing * (buttonCount - 1);
-	local buttonStartX = (self.width - totalButtonWidth) / 2;
-	local buttonY = self.height - margin - buttonHeight - 10;
-	local buttonIndex = 0;
-	local function nextButtonX()
-		local x = buttonStartX + (buttonWidth + buttonSpacing) * buttonIndex;
-		buttonIndex = buttonIndex + 1;
-		return x;
-	end
-
-	self.buyButton1 = self:createActionButton(nextButtonX(), buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x1", "buy1", function() self:onBuyMouseDown(1) end);
-	self.buyButton5 = self:createActionButton(nextButtonX(), buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x5", "buy5", function() self:onBuyMouseDown(5) end);
-	self.buyButton10 = self:createActionButton(nextButtonX(), buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x10", "buy10", function() self:onBuyMouseDown(10) end);
-
-	self.adminButton = nil;
+	local buttonGap = 10;
+	-- 管理员（且本机模组选项勾了"显示管理按钮"、世界沙箱开了"允许配置商品"）额外显示"管理商品"按钮
+	local canManage = SimpleShop.canShowManageButton(self.playerId);
+	local buttonDefs = {
+		{ text = getText("UI_SimpleShop_Buy") .. " x1", internal = "buy1", onclick = function() self:onBuyMouseDown(1) end },
+		{ text = getText("UI_SimpleShop_Buy") .. " x5", internal = "buy5", onclick = function() self:onBuyMouseDown(5) end },
+		{ text = getText("UI_SimpleShop_Buy") .. " x10", internal = "buy10", onclick = function() self:onBuyMouseDown(10) end },
+	};
 	if canManage then
-		self.adminButton = self:createActionButton(nextButtonX(), buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Manage"), "admin", function() SimpleShop.showAdminScreen(self.playerId) end);
+		buttonDefs[#buttonDefs + 1] = { text = getText("UI_SimpleShop_Manage"), internal = "admin", onclick = function() SimpleShop.showAdminScreen(self.playerId) end };
+	end
+	buttonDefs[#buttonDefs + 1] = { text = getText("UI_SimpleShop_Close"), internal = "close", onclick = self.onCloseMouseDown };
+
+	-- 按最长的按钮文字统一宽度，保证每个按钮等宽、间距完全一致
+	local maxTextWidth = 0;
+	for _, def in ipairs(buttonDefs) do
+		local textWidth = getTextManager():MeasureStringX(UIFont.Small, def.text);
+		if textWidth > maxTextWidth then
+			maxTextWidth = textWidth;
+		end
+	end
+	local buttonWidth = math.max(80, maxTextWidth + 22);
+	local totalButtonWidth = buttonWidth * #buttonDefs + buttonGap * (#buttonDefs - 1);
+	local buttonStartX = math.floor((self.width - totalButtonWidth) / 2);
+	-- 底部留白与左右边距一致（panel 从标题栏下方开始，坐标相对 panel）
+	local buttonY = panelHeight - margin - buttonHeight;
+
+	local actionButtons = {};
+	for index, def in ipairs(buttonDefs) do
+		local x = buttonStartX + (buttonWidth + buttonGap) * (index - 1);
+		actionButtons[index] = self:createActionButton(x, buttonY, buttonWidth, buttonHeight, def.text, def.internal, def.onclick);
 	end
 
-	self.closeButton = self:createActionButton(nextButtonX(), buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Close"), "close", self.onCloseMouseDown);
+	self.buyButton1 = actionButtons[1];
+	self.buyButton5 = actionButtons[2];
+	self.buyButton10 = actionButtons[3];
+	if canManage then
+		self.adminButton = actionButtons[4];
+		self.closeButton = actionButtons[5];
+	else
+		self.adminButton = nil;
+		self.closeButton = actionButtons[4];
+	end
+	-- 记下本次布局用的判定结果：沙箱开关变化后由 showUpgradeScreen 比对并重建窗口
+	self.manageAllowed = canManage and true or false;
 
-	-- 计算可用空间，预留边距和按钮空间
-	local margin = 20; -- 统一边距
-	local listWidth = self.width - (margin * 2); -- 左右对称边距
-	local listHeight = buttonY - y - 10; -- 精确计算列表高度，从当前y位置到按钮上方的距离
+	-- 列表区域：铺满左右边距，与上方筛选行、下方按钮各留一段间隔，避免贴在一起显得拥挤
+	local listGap = 14;
+	local listY = controlY + controlH + listGap;
+	local listWidth = self.width - (margin * 2);
+	local listHeight = buttonY - listY - listGap;
 
 	-- 创建标准滚动列表框
-	self.itemList = ISScrollingListBox:new(margin, y, listWidth, listHeight)
+	self.itemList = ISScrollingListBox:new(margin, listY, listWidth, listHeight)
 	self.itemList:initialise()
 	self.itemList:instantiate()
 	self.itemList.backgroundColor = {r=0.05, g=0.05, b=0.05, a=0.8}
@@ -237,6 +297,11 @@ function ISSimpleShop:onCategorySelected(comboBox)
 	self:applyFiltersAndUpdateView();
 end
 
+-- 排序下拉框回调（同样由 setOnChange 指定 target）
+function ISSimpleShop:onSortSelected(comboBox)
+	self:applyFiltersAndUpdateView();
+end
+
 function ISSimpleShop:onCloseMouseDown(button, x, y)
 	if button.internal == "close" then
 		self:setVisible(false);
@@ -263,7 +328,15 @@ function ISSimpleShop:initializeDataManager()
 	
 	-- 默认选择"所有分类"
 	self.categoryCombo.selected = 1
-	
+
+	-- 排序选项固定，只在首次构建时填充；刷新数据管理器时保留玩家当前选择
+	if self.sortCombo and #self.sortCombo.options == 0 then
+		for _, mode in ipairs(SimpleShopDataManager.SORT_MODES) do
+			self.sortCombo:addOption(SimpleShopDataManager.getSortLabel(mode))
+		end
+		self.sortCombo.selected = 1
+	end
+
 	-- 初始显示所有商品
 	self:applyFiltersAndUpdateView()
 end
@@ -313,9 +386,15 @@ function ISSimpleShop:applyFiltersAndUpdateView()
 		end
 	end
 	
-	-- 应用筛选条件到数据管理器
-	self.dataManager:applyFilters(category, searchText)
-	
+	-- 当前排序模式（下拉框下标 -> 模式名）
+	local sortMode = nil
+	if self.sortCombo and self.sortCombo.selected and self.sortCombo.selected >= 1 then
+		sortMode = SimpleShopDataManager.SORT_MODES[self.sortCombo.selected]
+	end
+
+	-- 应用筛选与排序条件到数据管理器
+	self.dataManager:applyFilters(category, searchText, sortMode)
+
 	-- 更新视图
 	self:updateItemListView()
 end
@@ -324,19 +403,44 @@ end
 -- 更新物品列表视图
 -- **********************************************************************************
 function ISSimpleShop:updateItemListView()
+	-- 记录当前选中项，排序/筛选后尽量保持选中同一件商品
+	local previousType = nil
+	if self.itemList.selected and self.itemList.selected >= 1 then
+		local entry = self.itemList.items[self.itemList.selected]
+		if entry and entry.item then
+			previousType = entry.item.itemType
+		end
+	end
+
 	-- 清空当前列表
 	self.itemList:clear()
-	
+
 	-- 从数据管理器获取筛选后的商品数据
 	local filteredItems = self.dataManager:getFilteredItems()
-	
+
 	-- 添加商品到列表
 	for _, itemData in ipairs(filteredItems) do
 		self.itemList:addItem(itemData.displayName, itemData)
 	end
-	
-	-- 重置选择
+
+	-- 恢复选择（商品未在结果中时保持未选中）
 	self.itemList.selected = 0
+	if previousType then
+		for index, entry in ipairs(self.itemList.items) do
+			if entry.item and entry.item.itemType == previousType then
+				self.itemList.selected = index
+				break
+			end
+		end
+	end
+
+	self:updateCountLabel(#filteredItems)
+end
+
+-- 商品数量标签（位置在 render 里按玩家名宽度对齐）
+function ISSimpleShop:updateCountLabel(count)
+	if not self.countLabel then return end
+	self.countLabel.name = getText("UI_SimpleShop_ItemCount") .. ": " .. tostring(count or 0)
 end
 
 function ISSimpleShop:new(x, y, width, height, player, settings)

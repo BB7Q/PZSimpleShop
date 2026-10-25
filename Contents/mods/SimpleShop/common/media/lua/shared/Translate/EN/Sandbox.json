@@ -1,0 +1,5 @@
+{
+    "Sandbox_SimpleShop": "SimpleShop",
+    "Sandbox_SimpleShopAllowManageItems": "Allow item configuration",
+    "Sandbox_SimpleShopAllowManageItems_tooltip": "Allow players with management rights to change item prices and display order; when off, the button, the key bind and multiplayer price requests are all refused (off by default). Each player must also enable \"Show Manage Items button\" in Options -> Mods -> SimpleShop"
+}

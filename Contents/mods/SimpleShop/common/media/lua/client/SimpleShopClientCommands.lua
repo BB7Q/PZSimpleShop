@@ -92,6 +92,22 @@ SimpleShopClientCommands.SendRemovePriceRequest = function(itemType)
 end
 
 -- **************************************************************************************
+-- 请求调整商品陈列顺序（上移/下移）
+-- **************************************************************************************
+SimpleShopClientCommands.SendMoveOrderRequest = function(itemType, delta)
+    if not isClient() then return false end
+
+    local playerObj = getPlayer()
+    if not playerObj then return false end
+
+    sendClientCommand(playerObj, "SimpleShop", "MoveItemOrder", {
+        itemType = itemType,
+        delta = delta
+    })
+    return true
+end
+
+-- **************************************************************************************
 -- 请求恢复默认商品清单
 -- **************************************************************************************
 SimpleShopClientCommands.SendResetPricesRequest = function()
@@ -140,9 +156,9 @@ local function onServerCommand(module, command, args)
         end
 
     elseif command == "pricesUpdated" then
-        -- 价格表已更新：优先使用服务端下发的快照（Global ModData 通道之外的兜底）
+        -- 价格表/陈列顺序已更新：优先使用服务端下发的快照（Global ModData 通道之外的兜底）
         if args and args.prices and SimpleShopItemStore then
-            SimpleShopItemStore.applyServerPrices(args.prices)
+            SimpleShopItemStore.applyServerState(args.prices, args.order)
         end
         print("[SimpleShop] Price table updated")
         

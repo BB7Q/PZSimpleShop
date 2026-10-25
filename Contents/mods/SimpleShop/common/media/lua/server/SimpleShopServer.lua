@@ -224,6 +224,8 @@ end
 -- **************************************************************************************
 SimpleShopServer.CanManageItems = function(playerObj)
     if not isServer() then return true end
+    -- 沙箱选项"允许配置商品"是权威开关：关掉后即使有管理员权限也不接受任何改价请求
+    if not SimpleShopItemStore.getSandboxOption("AllowManageItems", false) then return false end
     if not playerObj then return false end
     local level = playerObj:getAccessLevel()
     return level == "admin" or level == "moderator" or level == "overseer" or level == "gm"
@@ -241,11 +243,22 @@ local function snapshotPrices()
 end
 
 -- **************************************************************************************
--- 下发价格表：playerObj 为 nil 时广播给所有客户端
--- 这是 Global ModData 同步之外的第二条通道，保证客户端一定能拿到最新价格
+-- 陈列顺序快照（同样复制一份，数组元素是字符串）
+-- **************************************************************************************
+local function snapshotOrder()
+    local result = {}
+    for index, fullType in ipairs(SimpleShopItemStore.getOrder() or {}) do
+        result[index] = fullType
+    end
+    return result
+end
+
+-- **************************************************************************************
+-- 下发价格表与陈列顺序：playerObj 为 nil 时广播给所有客户端
+-- 这是 Global ModData 同步之外的第二条通道，保证客户端一定能拿到最新状态
 -- **************************************************************************************
 SimpleShopServer.SendPrices = function(playerObj)
-    local args = { prices = snapshotPrices() }
+    local args = { prices = snapshotPrices(), order = snapshotOrder() }
     if playerObj then
         sendServerCommand(playerObj, "SimpleShop", "pricesUpdated", args)
     else
@@ -295,6 +308,30 @@ SimpleShopServer.Commands.RemoveItemPrice = function(playerObj, args)
 
     print("[SimpleShop] " .. tostring(playerObj:getUsername()) .. " removed item: " .. tostring(args.itemType))
     SimpleShopItemStore.removePrice(args.itemType)
+    SimpleShopServer.SendPrices()
+end
+
+-- **************************************************************************************
+-- 调整商品陈列顺序（上移/下移）
+-- **************************************************************************************
+SimpleShopServer.Commands.MoveItemOrder = function(playerObj, args)
+    if not playerObj or not args or not args.itemType then return end
+    if not SimpleShopServer.CanManageItems(playerObj) then
+        sendServerCommand(playerObj, "SimpleShop", "priceChangeRejected", {reason = "no_permission"})
+        return
+    end
+
+    local delta = math.floor(tonumber(args.delta) or 0)
+    if delta == 0 then return end
+
+    if not SimpleShopItemStore.hasPrice(args.itemType) then
+        sendServerCommand(playerObj, "SimpleShop", "priceChangeRejected", {reason = "not_listed"})
+        return
+    end
+
+    print("[SimpleShop] " .. tostring(playerObj:getUsername()) .. " moved item: " .. tostring(args.itemType)
+        .. " by " .. tostring(delta))
+    SimpleShopItemStore.moveOrder(args.itemType, delta)
     SimpleShopServer.SendPrices()
 end
 

@@ -21,7 +21,6 @@ SimpleShopItems = {
     ["Base.Bullets9mmBox"] = 100,      -- 9mm子弹盒
     ["Base.Bullets38Box"] = 175,       -- .38子弹盒
     ["Base.Bullets44Box"] = 190,       -- .44子弹盒
-    ["Base.223Box"] = 300,             -- .223子弹盒
     ["Base.308Box"] = 300,             -- .308子弹盒
     ["Base.ShotgunShellsBox"] = 450,   -- 霰弹枪子弹盒
     ["Base.Bullets45Box"] = 500,       -- .45子弹盒

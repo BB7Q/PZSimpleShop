@@ -6,20 +6,25 @@ description=SimpleShop is a practical and user-friendly shopping mod that provid
 description=
 description=[h2]Key Features[/h2]
 description=[list]
-description=    [*] Shop interface - Scrollable list display with category filtering and search functionality
+description=    [*] Shop interface - Scrollable list display with category filtering, search and sorting (name / price, ascending or descending)
+description=    [*] Custom item order - Admins reorder items with the "Top / Up / Down / Bottom" buttons and the shop shows them in that order; the order is saved with the world
 description=    [*] Currency system - Earn money by killing zombies
 description=    [*] Death inheritance - Keep all money after player death
 description=    [*] Right-click menu - Right-click in the world or inventory and select "Open Shop"
+description=    [*] Configurable key binds - Bind keys for opening the shop and for item management in Options -> Mods -> SimpleShop; nothing is bound by default
+description=    [*] Sandbox options - Allow item configuration is a world-level sandbox setting (off by default); each player can additionally toggle the "Manage Items" button in Options -> Mods -> SimpleShop
 description=    [*] Multi-language support - Built-in Chinese and English interface
 description=    [*] Configurable - Support for custom initial money and item prices
 description=[/list]
 description=
 description=[h2]How to Use[/h2]
 description=[list]
-description=    [*] Open shop: Right-click in the world or inventory and select "Open Shop"
+description=    [*] Open shop: Right-click in the world or inventory and select "Open Shop", or bind your own key in Options -> Mods -> SimpleShop (unbound by default)
 description=    [*] Purchase items: Open the shop interface, click the item you want to buy, then click the "Buy" button
 description=    [*] Search items: Use the search box to quickly find items you need
 description=    [*] Category filter: Use the dropdown menu to browse items by category
+description=    [*] Sort items: Use the sort dropdown to switch between Shop order (default, configured by admins) / Name A→Z / Name Z→A / Price low→high / Price high→low; sorting stacks with search and category filters
+description=    [*] Reorder items: In the pricing window select a listed item and press "Top / Up / Down / Bottom"; new listings are appended to the end and delisted items are removed from the order
 description=    [*] Earn money: Get money rewards by killing zombies, new characters start with initial funds
 description=[/list]
 description=
@@ -65,7 +70,6 @@ description=    -- Ammunition
 description=    ["Base.Bullets9mmBox"] = 100,      -- 9mm Bullet Box
 description=    ["Base.Bullets38Box"] = 175,       -- .38 Bullet Box
 description=    ["Base.Bullets44Box"] = 190,       -- .44 Bullet Box
-description=    ["Base.223Box"] = 300,             -- .223 Box
 description=    ["Base.308Box"] = 300,             -- .308 Box
 description=    ["Base.ShotgunShellsBox"] = 450,   -- Shotgun Shells Box
 description=    ["Base.Bullets45Box"] = 500,       -- .45 Bullet Box

@@ -6,6 +6,7 @@ require "ISUI/ISTextEntryBox"
 require "ISUI/ISComboBox"
 require "SimpleShop"
 require "SimpleShopItemStore"
+require "SimpleShopDataManager"
 
 -- **************************************************************************************
 -- 商品定价窗口：选择游戏内任意物品（含其他模组物品）并设置价格
@@ -71,6 +72,8 @@ function ISSimpleShopAdmin:create()
 	self.showAll = false;
 	self.mod = ALL_MODS;
 	self.category = ALL_CATEGORIES;
+	self.sortMode = SimpleShopDataManager.DEFAULT_SORT;
+	self.sortModes = SimpleShopDataManager.SORT_MODES;
 
 	local w = self.width;
 	local rowY = 8;
@@ -94,8 +97,29 @@ function ISSimpleShopAdmin:create()
 	self.viewListedButton = self:createButton(PAD + 268, rowY, viewW, rowH, getText("UI_SimpleShop_ViewListed"), "view_listed", self.onViewClicked);
 	self.viewAllButton = self:createButton(PAD + 274 + viewW, rowY, viewW, rowH, getText("UI_SimpleShop_ViewAll"), "view_all", self.onViewClicked);
 
-	-- 工具栏（第 2 行）：先按来源模组、再按物品类型的两级筛选
-	local filterW = math.min(270, math.floor((w - PAD * 2 - 10) / 2));
+	-- 陈列顺序调整按钮（置顶/上移/下移/置底）：靠右放在第 1 行，按可用宽度自动收窄
+	local viewRight = PAD + 274 + viewW * 2;   -- 视图切换按钮右边缘
+	local moveGap = 6;
+	local moveDefs = {
+		{ textKey = "UI_SimpleShop_MoveTop", hintKey = "UI_SimpleShop_MoveTopHint", internal = "move_top", handler = self.onMoveTop },
+		{ textKey = "UI_SimpleShop_MoveUp", hintKey = "UI_SimpleShop_MoveUpHint", internal = "move_up", handler = self.onMoveUp },
+		{ textKey = "UI_SimpleShop_MoveDown", hintKey = "UI_SimpleShop_MoveDownHint", internal = "move_down", handler = self.onMoveDown },
+		{ textKey = "UI_SimpleShop_MoveBottom", hintKey = "UI_SimpleShop_MoveBottomHint", internal = "move_bottom", handler = self.onMoveBottom },
+	};
+	local moveCount = #moveDefs;
+	local available = w - PAD - viewRight - 10 - moveGap * (moveCount - 1);
+	local moveW = math.max(40, math.min(64, math.floor(available / moveCount)));
+	self.orderButtons = {};
+	for index = 1, moveCount do
+		local def = moveDefs[index];
+		local x = w - PAD - moveW * (moveCount - index + 1) - moveGap * (moveCount - index);
+		local button = self:createButton(x, rowY, moveW, rowH, getText(def.textKey), def.internal, def.handler);
+		button.tooltip = getText(def.hintKey);
+		self.orderButtons[index] = button;
+	end
+
+	-- 工具栏（第 2 行）：来源模组 -> 物品类型 -> 排序 三列并排
+	local filterW = math.min(270, math.floor((w - PAD * 2 - 20) / 3));
 	self.modCombo = ISComboBox:new(PAD, rowY2, filterW, rowH);
 	self.modCombo:initialise();
 	self.modCombo:instantiate();
@@ -114,6 +138,19 @@ function ISSimpleShopAdmin:create()
 	self.categoryCombo.tooltip = getText("UI_SimpleShop_CategoryFilter");
 	self.panel:addChild(self.categoryCombo);
 	self.categoryOptions = { ALL_CATEGORIES };
+
+	-- 排序下拉框：商店顺序 / 名称 / 价格，选项在打开窗口期间固定
+	self.sortCombo = ISComboBox:new(PAD + (filterW + 10) * 2, rowY2, filterW, rowH);
+	self.sortCombo:initialise();
+	self.sortCombo:instantiate();
+	self.sortCombo.font = UIFont.Small;
+	self.sortCombo:setOnChange(self, self.onSortChanged);
+	self.sortCombo.tooltip = getText("UI_SimpleShop_SortTooltip");
+	for _, mode in ipairs(self.sortModes) do
+		self.sortCombo:addOption(SimpleShopDataManager.getSortLabel(mode));
+	end
+	self.sortCombo.selected = 1;
+	self.panel:addChild(self.sortCombo);
 
 	-- 列表
 	local listY = rowY2 + rowH + 10;
@@ -163,17 +200,38 @@ function ISSimpleShopAdmin:create()
 	self.priceLabel:instantiate();
 	self.panel:addChild(self.priceLabel);
 
-	self.priceEntry = ISTextEntryBox:new("", PAD + 42, actionY, 110, actionH);
+	-- 操作栏：价格输入 + 按钮全部 10px 等间距，按钮等宽（按最长文案测量，避免 ISButton 自动撑宽）
+	local actionGap = 10;
+	local priceEntryWidth = 110;
+	local priceLabelWidth = getTextManager():MeasureStringX(UIFont.Small, getText("UI_SimpleShop_Price"));
+	local priceEntryX = PAD + priceLabelWidth + actionGap;
+	self.priceEntry = ISTextEntryBox:new("", priceEntryX, actionY, priceEntryWidth, actionH);
 	self.priceEntry:initialise();
 	self.priceEntry:instantiate();
 	self.priceEntry:setFont(UIFont.Small);
 	self.priceEntry:setOnlyNumbers(true);
 	self.panel:addChild(self.priceEntry);
 
-	self.setButton = self:createButton(PAD + 160, actionY, 108, actionH, getText("UI_SimpleShop_SetPrice"), "set_price", self.onSetPrice);
-	self.removeButton = self:createButton(PAD + 276, actionY, 80, actionH, getText("UI_SimpleShop_Remove"), "remove_price", self.onRemovePrice);
-	self.resetButton = self:createButton(PAD + 364, actionY, 108, actionH, getText("UI_SimpleShop_ResetDefault"), "reset_prices", self.onResetPrices);
-	self.closeButton = self:createButton(w - PAD - 84, actionY, 84, actionH, getText("UI_SimpleShop_Close"), "close", self.onCloseMouseDown);
+	local actionDefs = {
+		{ key = "set", text = getText("UI_SimpleShop_SetPrice"), internal = "set_price", onclick = self.onSetPrice },
+		{ key = "remove", text = getText("UI_SimpleShop_Remove"), internal = "remove_price", onclick = self.onRemovePrice },
+		{ key = "reset", text = getText("UI_SimpleShop_ResetDefault"), internal = "reset_prices", onclick = self.onResetPrices },
+	};
+	local maxActionText = 0;
+	for _, def in ipairs(actionDefs) do
+		local textWidth = getTextManager():MeasureStringX(UIFont.Small, def.text);
+		if textWidth > maxActionText then
+			maxActionText = textWidth;
+		end
+	end
+	local actionWidth = math.max(84, maxActionText + 22);
+	local actionX = priceEntryX + priceEntryWidth + actionGap;
+
+	self.setButton = self:createButton(actionX, actionY, actionWidth, actionH, actionDefs[1].text, actionDefs[1].internal, actionDefs[1].onclick);
+	self.removeButton = self:createButton(actionX + (actionWidth + actionGap), actionY, actionWidth, actionH, actionDefs[2].text, actionDefs[2].internal, actionDefs[2].onclick);
+	self.resetButton = self:createButton(actionX + (actionWidth + actionGap) * 2, actionY, actionWidth, actionH, actionDefs[3].text, actionDefs[3].internal, actionDefs[3].onclick);
+	-- 关闭按钮同样排在这一行里，保持整排按钮间距完全一致
+	self.closeButton = self:createButton(actionX + (actionWidth + actionGap) * 3, actionY, actionWidth, actionH, getText("UI_SimpleShop_Close"), "close", self.onCloseMouseDown);
 
 	self.statusLabel = ISLabel:new(PAD, actionY + actionH + 4, 20, "", 0.85, 0.85, 0.6, 1, UIFont.Small, true);
 	self.statusLabel:initialise();
@@ -231,6 +289,99 @@ function ISSimpleShopAdmin:onCategoryChanged(comboBox)
 	local index = (comboBox and comboBox.selected) or 1;
 	self.category = self.categoryOptions[index] or ALL_CATEGORIES;
 	self:rebuildList(true);
+end
+
+function ISSimpleShopAdmin:onSortChanged(comboBox)
+	local index = (comboBox and comboBox.selected) or 1;
+	self.sortMode = (self.sortModes and self.sortModes[index]) or SimpleShopDataManager.DEFAULT_SORT;
+	self:rebuildList(true);
+end
+
+-- **************************************************************************************
+-- 陈列顺序调整（上移/下移选中商品）
+-- **************************************************************************************
+function ISSimpleShopAdmin:onMoveUp(button)
+	self:moveSelected(-1);
+end
+
+function ISSimpleShopAdmin:onMoveDown(button)
+	self:moveSelected(1);
+end
+
+function ISSimpleShopAdmin:onMoveTop(button)
+	self:moveSelected(-SimpleShopItemStore.MOVE_TO_EDGE_STEP);
+end
+
+function ISSimpleShopAdmin:onMoveBottom(button)
+	self:moveSelected(SimpleShopItemStore.MOVE_TO_EDGE_STEP);
+end
+
+-- 沙箱开关"允许配置商品"可能被管理员在会话中关掉：动手前再确认一次权限
+function ISSimpleShopAdmin:canEdit()
+	if SimpleShop.canAccessAdminPanel then
+		return SimpleShop.canAccessAdminPanel(self.playerId);
+	end
+	return true;
+end
+
+function ISSimpleShopAdmin:moveSelected(delta)
+	if not self:canEdit() then
+		self:setStatus(getText("UI_SimpleShop_NoPermission"), true);
+		return;
+	end
+	local data = self:getSelectedItem();
+	if not data then
+		self:setStatus(getText("UI_SimpleShop_SelectItem"), true);
+		return;
+	end
+	if not SimpleShopItemStore.hasPrice(data.itemType) then
+		self:setStatus(getText("UI_SimpleShop_OrderListedOnly"), true);
+		return;
+	end
+
+	self.selectedType = data.itemType;
+	-- 顺序调整总是基于"商店顺序"，先切回该排序，避免列表在名称/价格顺序下跳动
+	self:useCustomSort();
+
+	if SimpleShopItemStore.moveOrder(data.itemType, delta) then
+		self:setStatus(getText("UI_SimpleShop_OrderSaved") .. " " .. tostring(data.itemName or data.itemType), false);
+		self.needRefresh = false;
+		self:rebuildList(false);
+		self:revealSelection();
+	else
+		self:setStatus(getText("UI_SimpleShop_OrderEdge"), true);
+	end
+end
+
+-- 移动到其它页时，把选中商品所在的页翻出来，避免选中状态丢失
+function ISSimpleShopAdmin:revealSelection()
+	if not self.selectedType then return end
+	for index = 1, #self.filtered do
+		if self.filtered[index].itemType == self.selectedType then
+			local page = math.ceil(index / self.pageSize);
+			if page ~= self.page then
+				self.page = math.max(1, math.min(page, self.pageCount));
+				self:renderPage();
+			end
+			return;
+		end
+	end
+end
+
+-- 把排序下拉框切到"商店顺序"（Dropdown 选项与 sortModes 一一对应）
+function ISSimpleShopAdmin:useCustomSort()
+	local mode = SimpleShopDataManager.DEFAULT_SORT;
+	if self.sortMode == mode then return end;
+
+	self.sortMode = mode;
+	for index, value in ipairs(self.sortModes or {}) do
+		if value == mode then
+			if self.sortCombo then
+				self.sortCombo.selected = index;
+			end
+			break;
+		end
+	end
 end
 
 function ISSimpleShopAdmin:updateViewButtons()
@@ -386,6 +537,42 @@ local function rowBefore(a, b)
 	return an < bn;
 end
 
+-- 行排序（可切换模式）：custom 按管理员设定的陈列顺序，价格模式按价格表取值，未上架的行统一排到最后
+local function rowCompare(mode, prices, a, b, ranks)
+	local an = a.searchName or string.lower(a.itemName or a.itemType or "");
+	local bn = b.searchName or string.lower(b.itemName or b.itemType or "");
+	local aType, bType = a.itemType or "", b.itemType or "";
+
+	if mode == "custom" and ranks then
+		local aRank, bRank = ranks[aType], ranks[bType];
+		if aRank ~= bRank then
+			if aRank == nil then return false; end
+			if bRank == nil then return true; end
+			return aRank < bRank;
+		end
+	end
+
+	if mode == "price_asc" or mode == "price_desc" then
+		local aCost, bCost = prices[aType], prices[bType];
+		local aListed, bListed = aCost ~= nil, bCost ~= nil;
+		if aListed ~= bListed then return aListed; end
+		if aListed and aCost ~= bCost then
+			if mode == "price_asc" then return aCost < bCost; end
+			return aCost > bCost;
+		end
+		if an ~= bn then return an < bn; end
+		return aType < bType;
+	end
+
+	if mode == "name_desc" then
+		if an ~= bn then return an > bn; end
+		return aType > bType;
+	end
+
+	if an == bn then return aType < bType; end
+	return an < bn;
+end
+
 function ISSimpleShopAdmin:rebuildList(resetPage)
 	local prices = SimpleShopItemStore.getPrices() or {};
 	local searchLower = string.lower(self.searchBox:getInternalText() or "");
@@ -419,21 +606,53 @@ function ISSimpleShopAdmin:rebuildList(resetPage)
 		end
 	end
 
+	local mode = self.sortMode or SimpleShopDataManager.DEFAULT_SORT;
+	local ranks = nil;
+	if mode == "custom" then
+		local order = SimpleShopItemStore.getOrder();
+		if type(order) == "table" and #order > 0 then
+			-- 序号取完整陈列顺序的位置：编号连续，且与商店里看到的顺序完全一致
+			ranks = {};
+			local display = SimpleShopItemStore.buildDisplayOrder(prices, order);
+			for index = 1, #display do
+				ranks[display[index]] = index;
+			end
+		else
+			-- 从未调整过顺序时等价于按名称排列（列表缓存本身已按名称排好）
+			mode = "name_asc";
+		end
+	end
+
 	if ghosts then
-		table.sort(ghosts, rowBefore);
-		local merged = {};
-		local i, j = 1, 1;
-		while i <= #rows or j <= #ghosts do
-			if j > #ghosts or (i <= #rows and not rowBefore(ghosts[j], rows[i])) then
-				merged[#merged + 1] = rows[i];
-				i = i + 1;
-			else
-				merged[#merged + 1] = ghosts[j];
-				j = j + 1;
+		if mode == "name_asc" then
+			-- 名称升序：两边各自有序，归并即可，不对整表重排
+			table.sort(ghosts, rowBefore);
+			local merged = {};
+			local i, j = 1, 1;
+			while i <= #rows or j <= #ghosts do
+				if j > #ghosts or (i <= #rows and not rowBefore(ghosts[j], rows[i])) then
+					merged[#merged + 1] = rows[i];
+					i = i + 1;
+				else
+					merged[#merged + 1] = ghosts[j];
+					j = j + 1;
+				end
+			end
+			rows = merged;
+		else
+			for index = 1, #ghosts do
+				rows[#rows + 1] = ghosts[index];
 			end
 		end
-		rows = merged;
 	end
+
+	-- 非名称升序：对当前结果集整体排序（名称升序直接复用脚本缓存的既有排序）
+	if mode ~= "name_asc" then
+		table.sort(rows, function(a, b) return rowCompare(mode, prices, a, b, ranks) end);
+	end
+
+	-- 陈列顺序模式：把当前顺序编号记下来，绘制时显示 1. 2. 3.
+	self.orderRanks = (mode == "custom") and ranks or nil;
 
 	self.filtered = rows;
 	self.pageCount = math.max(1, math.ceil(#rows / self.pageSize));
@@ -534,7 +753,14 @@ function ISSimpleShopAdmin:drawListItem(list, y, item, alt)
 	local textBlockH = fontH * 2 + 6;
 	local nameY = y + math.floor((height - textBlockH) / 2);
 	local idY = nameY + fontH + 6;
-	list:drawText(self:trimText(data.itemName or data.itemType, textWidth), textX, nameY, 1, 1, 1, 1, UIFont.Small);
+
+	-- 商店顺序模式下在名称前显示序号，方便确认调整结果
+	local nameText = data.itemName or data.itemType;
+	local rank = self.orderRanks and self.orderRanks[data.itemType];
+	if rank then
+		nameText = tostring(rank) .. ". " .. tostring(nameText);
+	end
+	list:drawText(self:trimText(nameText, textWidth), textX, nameY, 1, 1, 1, 1, UIFont.Small);
 	list:drawText(self:trimText(data.itemType, textWidth), textX, idY, 0.62, 0.62, 0.62, 1, UIFont.Small);
 
 	-- 徽标高度 = 字体高度 + 上下内边距，保证背景始终罩住文字
@@ -646,6 +872,10 @@ function ISSimpleShopAdmin:getSelectedItem()
 end
 
 function ISSimpleShopAdmin:onSetPrice(button)
+	if not self:canEdit() then
+		self:setStatus(getText("UI_SimpleShop_NoPermission"), true);
+		return;
+	end
 	local data = self:getSelectedItem();
 	if not data then
 		self:setStatus(getText("UI_SimpleShop_SelectItem"), true);
@@ -668,6 +898,10 @@ function ISSimpleShopAdmin:onSetPrice(button)
 end
 
 function ISSimpleShopAdmin:onRemovePrice(button)
+	if not self:canEdit() then
+		self:setStatus(getText("UI_SimpleShop_NoPermission"), true);
+		return;
+	end
 	local data = self:getSelectedItem();
 	if not data then
 		self:setStatus(getText("UI_SimpleShop_SelectItem"), true);
@@ -688,6 +922,10 @@ function ISSimpleShopAdmin:onRemovePrice(button)
 end
 
 function ISSimpleShopAdmin:onResetPrices(button)
+	if not self:canEdit() then
+		self:setStatus(getText("UI_SimpleShop_NoPermission"), true);
+		return;
+	end
 	if SimpleShopItemStore.resetToDefault() then
 		self:setStatus(getText("UI_SimpleShop_PricesReset"), false);
 	else

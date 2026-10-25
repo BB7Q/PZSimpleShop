@@ -1,0 +1,12 @@
+VERSION = 1,
+
+/* SimpleShop -- world-level rules (sandbox options page "SimpleShop").
+   AllowManageItems : allow item configuration (prices / display order).
+   The client-side "Show Manage Items button" toggle in Options -> Mods -> SimpleShop
+   only takes effect when this world option is enabled. */
+
+option SimpleShop.AllowManageItems
+{
+    type = boolean, default = false,
+    page = SimpleShop, translation = SimpleShopAllowManageItems,
+}

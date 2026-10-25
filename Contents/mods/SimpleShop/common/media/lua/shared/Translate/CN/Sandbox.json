@@ -1,0 +1,5 @@
+{
+    "Sandbox_SimpleShop": "简易商店",
+    "Sandbox_SimpleShopAllowManageItems": "允许配置商品",
+    "Sandbox_SimpleShopAllowManageItems_tooltip": "允许有管理权限的玩家调整商品价格与陈列顺序；关闭后按钮、快捷键与联机改价请求全部拒绝（默认关闭）。玩家本机还需在 选项 → 模组 → 简易商店 里勾选「显示管理按钮」"
+}
