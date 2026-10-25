@@ -48,6 +48,63 @@ SimpleShopClientCommands.SendMoneyRequest = function()
 end
 
 -- **************************************************************************************
+-- 请求同步商品价格表
+-- **************************************************************************************
+SimpleShopClientCommands.SendPricesRequest = function()
+    if not isClient() then return false end
+
+    local playerObj = getPlayer()
+    if not playerObj then return false end
+
+    sendClientCommand(playerObj, "SimpleShop", "RequestPrices", {})
+    return true
+end
+
+-- **************************************************************************************
+-- 请求上架/修改商品价格
+-- **************************************************************************************
+SimpleShopClientCommands.SendSetPriceRequest = function(itemType, cost)
+    if not isClient() then return false end
+
+    local playerObj = getPlayer()
+    if not playerObj then return false end
+
+    sendClientCommand(playerObj, "SimpleShop", "SetItemPrice", {
+        itemType = itemType,
+        cost = cost
+    })
+    return true
+end
+
+-- **************************************************************************************
+-- 请求下架商品
+-- **************************************************************************************
+SimpleShopClientCommands.SendRemovePriceRequest = function(itemType)
+    if not isClient() then return false end
+
+    local playerObj = getPlayer()
+    if not playerObj then return false end
+
+    sendClientCommand(playerObj, "SimpleShop", "RemoveItemPrice", {
+        itemType = itemType
+    })
+    return true
+end
+
+-- **************************************************************************************
+-- 请求恢复默认商品清单
+-- **************************************************************************************
+SimpleShopClientCommands.SendResetPricesRequest = function()
+    if not isClient() then return false end
+
+    local playerObj = getPlayer()
+    if not playerObj then return false end
+
+    sendClientCommand(playerObj, "SimpleShop", "ResetItemPrices", {})
+    return true
+end
+
+-- **************************************************************************************
 -- 处理服务器响应
 -- **************************************************************************************
 local function onServerCommand(module, command, args)
@@ -72,6 +129,22 @@ local function onServerCommand(module, command, args)
     elseif command == "purchaseFailed" then
         -- 购买失败
         print("[SimpleShop] Purchase failed: " .. tostring(args.reason))
+
+    elseif command == "priceChangeRejected" then
+        -- 价格修改被拒绝（通常是权限不足）
+        print("[SimpleShop] Price change rejected: " .. tostring(args.reason))
+        local playerIndex = getPlayer():getPlayerNum()
+        local adminScreen = SimpleShop.adminScreen and SimpleShop.adminScreen[playerIndex]
+        if adminScreen and adminScreen.setStatus then
+            adminScreen:setStatus(getText("UI_SimpleShop_NoPermission"), true)
+        end
+
+    elseif command == "pricesUpdated" then
+        -- 价格表已更新：优先使用服务端下发的快照（Global ModData 通道之外的兜底）
+        if args and args.prices and SimpleShopItemStore then
+            SimpleShopItemStore.applyServerPrices(args.prices)
+        end
+        print("[SimpleShop] Price table updated")
         
     elseif command == "updateMoney" then
         -- 更新金钱数据和显示

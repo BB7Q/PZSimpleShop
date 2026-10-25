@@ -1,6 +1,7 @@
 require "ISUI/ISCollapsableWindow"
 require "SimpleShop"
 require "SimpleShopDataManager"
+require "SimpleShopItemStore"
 require "SimpleShopClientCommands"
 
 ISSimpleShop = ISCollapsableWindow:derive("ISSimpleShop");
@@ -64,11 +65,8 @@ function ISSimpleShop:create()
 	self.categoryCombo:initialise();
 	self.categoryCombo:instantiate();
 	self.categoryCombo.font = UIFont.Small;
-	-- 创建一个闭包函数来处理选择变化事件
-	self.categoryCombo.onChange = function(target)
-		local searchText = self.searchBox:getInternalText()
-		self:applyFiltersAndUpdateView()
-	end
+	-- ISComboBox 触发 onChange(target, comboBox)，必须走 setOnChange 指定 target
+	self.categoryCombo:setOnChange(self, self.onCategorySelected);
 	self.panel:addChild(self.categoryCombo);
 	
 	-- 搜索框在右侧，占据50%宽度
@@ -78,62 +76,42 @@ function ISSimpleShop:create()
 	self.searchBox:initialise();
 	self.searchBox:instantiate();
 	self.searchBox.font = UIFont.Small;
-	-- 创建一个闭包函数来处理文本变化事件
-	self.searchBox.onTextChange = function(target)
-		local searchText = target:getInternalText()
-		self:applyFiltersAndUpdateView()
+	-- ISTextEntryBox 只有 onTextChangeFunction(target, box) 会被调用
+	self.searchBox.target = self;
+	self.searchBox.onTextChangeFunction = function(target, box)
+		self:applyFiltersAndUpdateView();
 	end
 	self.panel:addChild(self.searchBox);
 
 	y = y + 30;
 
 	-- 在底部添加按钮区域，居中显示
-	local buttonWidth = 80; -- 调整按钮宽度以适应4个按钮
-	local buttonHeight = 30; -- 按钮高度
-	local buttonSpacing = 10; -- 按钮间距
-	local totalButtonWidth = buttonWidth * 4 + buttonSpacing * 3; -- 4个按钮和3个间距
-	local buttonStartX = (self.width - totalButtonWidth) / 2; -- 居中显示
-	local buttonY = self.height - margin - buttonHeight - 10; -- 离底部与按钮高度相匹配的边距
-	
-	-- 创建购买1个按钮
-	self.buyButton1 = ISButton:new(buttonStartX, buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x1", self, function() self:onBuyMouseDown(1) end);
-	self.buyButton1:initialise();
-	self.buyButton1.internal = "buy1";
-	self.buyButton1.borderColor = {r=0.7, g=0.7, b=0.7, a=1};
-	self.buyButton1:setFont(UIFont.Small);
-	self.buyButton1:ignoreWidthChange();
-	self.buyButton1:ignoreHeightChange();
-	self.panel:addChild(self.buyButton1);
-	
-	-- 创建购买5个按钮
-	self.buyButton5 = ISButton:new(buttonStartX + buttonWidth + buttonSpacing, buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x5", self, function() self:onBuyMouseDown(5) end);
-	self.buyButton5:initialise();
-	self.buyButton5.internal = "buy5";
-	self.buyButton5.borderColor = {r=0.7, g=0.7, b=0.7, a=1};
-	self.buyButton5:setFont(UIFont.Small);
-	self.buyButton5:ignoreWidthChange();
-	self.buyButton5:ignoreHeightChange();
-	self.panel:addChild(self.buyButton5);
-	
-	-- 创建购买10个按钮
-	self.buyButton10 = ISButton:new(buttonStartX + (buttonWidth + buttonSpacing) * 2, buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x10", self, function() self:onBuyMouseDown(10) end);
-	self.buyButton10:initialise();
-	self.buyButton10.internal = "buy10";
-	self.buyButton10.borderColor = {r=0.7, g=0.7, b=0.7, a=1};
-	self.buyButton10:setFont(UIFont.Small);
-	self.buyButton10:ignoreWidthChange();
-	self.buyButton10:ignoreHeightChange();
-	self.panel:addChild(self.buyButton10);
+	local buttonWidth = 80;
+	local buttonHeight = 30;
+	local buttonSpacing = 10;
+	-- 管理员额外显示"管理商品"按钮
+	local canManage = SimpleShop.CanManageItems(self.playerId);
+	local buttonCount = canManage and 5 or 4;
+	local totalButtonWidth = buttonWidth * buttonCount + buttonSpacing * (buttonCount - 1);
+	local buttonStartX = (self.width - totalButtonWidth) / 2;
+	local buttonY = self.height - margin - buttonHeight - 10;
+	local buttonIndex = 0;
+	local function nextButtonX()
+		local x = buttonStartX + (buttonWidth + buttonSpacing) * buttonIndex;
+		buttonIndex = buttonIndex + 1;
+		return x;
+	end
 
-	-- 创建关闭按钮
-	self.closeButton = ISButton:new(buttonStartX + (buttonWidth + buttonSpacing) * 3, buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Close"), self, self.onCloseMouseDown);
-	self.closeButton:initialise();
-	self.closeButton.internal = "close";
-	self.closeButton.borderColor = {r=0.7, g=0.7, b=0.7, a=1};
-	self.closeButton:setFont(UIFont.Small);
-	self.closeButton:ignoreWidthChange();
-	self.closeButton:ignoreHeightChange();
-	self.panel:addChild(self.closeButton);
+	self.buyButton1 = self:createActionButton(nextButtonX(), buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x1", "buy1", function() self:onBuyMouseDown(1) end);
+	self.buyButton5 = self:createActionButton(nextButtonX(), buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x5", "buy5", function() self:onBuyMouseDown(5) end);
+	self.buyButton10 = self:createActionButton(nextButtonX(), buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Buy") .. " x10", "buy10", function() self:onBuyMouseDown(10) end);
+
+	self.adminButton = nil;
+	if canManage then
+		self.adminButton = self:createActionButton(nextButtonX(), buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Manage"), "admin", function() SimpleShop.showAdminScreen(self.playerId) end);
+	end
+
+	self.closeButton = self:createActionButton(nextButtonX(), buttonY, buttonWidth, buttonHeight, getText("UI_SimpleShop_Close"), "close", self.onCloseMouseDown);
 
 	-- 计算可用空间，预留边距和按钮空间
 	local margin = 20; -- 统一边距
@@ -197,11 +175,15 @@ end
 
 function ISSimpleShop:onBuyMouseDown(quantity)
 	quantity = quantity or 1
-	if self.itemList.selected >= 0 then
+	if self.itemList.selected >= 1 then
 		local selectedItem = self.itemList.items[self.itemList.selected]
 		if selectedItem and selectedItem.item then
-			local totalCost = selectedItem.item.cost * quantity
-			
+			local itemType = selectedItem.item.itemType
+			-- 以当前生效的价格表为准（服务端也会独立校验一次）
+			local unitCost = SimpleShopItemStore.getPrice(itemType) or selectedItem.item.cost
+			if not unitCost then return end
+			local totalCost = unitCost * quantity
+
 			-- 检查是否为联机模式（连接到远程服务器）
 			if isClient() then
 				-- 联机模式：发送请求到服务器
@@ -210,25 +192,49 @@ function ISSimpleShop:onBuyMouseDown(quantity)
 					return
 				end
 			end
-			
+
 			-- 单人模式或主机模式：本地处理
-			-- 使用新的API检查是否有足够金钱
-			if SimpleShop.HasEnoughMoney(totalCost) then
-				-- 使用新的API扣除金钱
-				if SimpleShop.RemovePlayerMoney(totalCost) then
-					-- 批量添加物品到玩家背包
-					self.char:getInventory():AddItems(selectedItem.item.itemType, quantity);
-					-- 使用新的API获取更新后的金钱并更新显示
-					local newMoney = SimpleShop.GetPlayerMoney();
-					if self.moneyLabel and newMoney ~= nil then
-						self.moneyLabel.name = getText("UI_SimpleShop_Money") .. ": " .. newMoney;
-					end
+			-- 价格为 0 视为免费领取，跳过金钱校验
+			if totalCost > 0 then
+				-- 使用新的API检查是否有足够金钱
+				if not SimpleShop.HasEnoughMoney(totalCost) then
+					return;
 				end
-			else
-				-- 金钱不足提示
+				-- 使用新的API扣除金钱
+				if not SimpleShop.RemovePlayerMoney(totalCost) then
+					return;
+				end
+			end
+
+			-- 批量添加物品到玩家背包
+			self.char:getInventory():AddItems(itemType, quantity);
+			-- 使用新的API获取更新后的金钱并更新显示
+			local newMoney = SimpleShop.GetPlayerMoney();
+			if self.moneyLabel and newMoney ~= nil then
+				self.moneyLabel.name = getText("UI_SimpleShop_Money") .. ": " .. newMoney;
 			end
 		end
 	end
+end
+
+-- **************************************************************************************
+-- 创建底部操作按钮
+-- **************************************************************************************
+function ISSimpleShop:createActionButton(x, y, width, height, text, internal, onclick)
+	local button = ISButton:new(x, y, width, height, text, self, onclick);
+	button:initialise();
+	button.internal = internal;
+	button.borderColor = {r=0.7, g=0.7, b=0.7, a=1};
+	button:setFont(UIFont.Small);
+	button:ignoreWidthChange();
+	button:ignoreHeightChange();
+	self.panel:addChild(button);
+	return button;
+end
+
+-- ISComboBox 回调签名 (target, comboBox)：target 已作为 self 传入
+function ISSimpleShop:onCategorySelected(comboBox)
+	self:applyFiltersAndUpdateView();
 end
 
 function ISSimpleShop:onCloseMouseDown(button, x, y)
@@ -260,6 +266,29 @@ function ISSimpleShop:initializeDataManager()
 	
 	-- 初始显示所有商品
 	self:applyFiltersAndUpdateView()
+end
+
+-- **********************************************************************************
+-- 商品清单或价格变化后重建数据管理器（尽量保留当前筛选条件）
+-- **********************************************************************************
+function ISSimpleShop:refreshDataManager()
+	local previousCategory = nil;
+	if self.categoryCombo and self.categoryCombo.selected and self.categoryCombo.selected >= 1 then
+		previousCategory = self.categoryCombo:getOptionText(self.categoryCombo.selected);
+	end
+
+	self:initializeDataManager();
+
+	if previousCategory then
+		for index = 1, #self.categoryCombo.options do
+			if self.categoryCombo:getOptionText(index) == previousCategory then
+				self.categoryCombo.selected = index;
+				break;
+			end
+		end
+	end
+
+	self:applyFiltersAndUpdateView();
 end
 
 -- **********************************************************************************

@@ -19,13 +19,24 @@ function SimpleShopDataManager:new(settings)
     return o
 end
 
+-- 获取当前生效的价格表（优先使用持久化的商品清单）
+function SimpleShopDataManager:getPriceTable()
+    if SimpleShopItemStore then
+        local prices = SimpleShopItemStore.getPrices()
+        if SimpleShopItemStore.isLoaded and type(prices) == "table" then
+            return prices
+        end
+    end
+    return (self.settings and self.settings["ITEMS"]) or {}
+end
+
 -- 初始化商品数据
 function SimpleShopDataManager:initializeItems()
     self.allItems = {}
     self.categories = {}
-    
+
     -- 获取商品列表并分类
-    local items = self.settings["ITEMS"]
+    local items = self:getPriceTable()
     for itemType, cost in pairs(items) do
         local item = instanceItem(itemType)
         if item then
@@ -44,15 +55,25 @@ function SimpleShopDataManager:initializeItems()
             
             -- 添加到所有商品列表
             table.insert(self.allItems, itemData)
-            
-            -- 添加到分类映射
-            if not self.categories[category] then
-                self.categories[category] = {}
-            end
-            table.insert(self.categories[category], itemData)
         end
     end
-    
+
+    -- 按名称排序，保证列表顺序稳定
+    table.sort(self.allItems, function(a, b)
+        local an, bn = string.lower(a.itemName or ""), string.lower(b.itemName or "")
+        if an == bn then return a.itemType < b.itemType end
+        return an < bn
+    end)
+
+    -- 添加到分类映射
+    for _, itemData in ipairs(self.allItems) do
+        local category = itemData.category
+        if not self.categories[category] then
+            self.categories[category] = {}
+        end
+        table.insert(self.categories[category], itemData)
+    end
+
     -- 默认显示所有商品
     self:applyFilters()
 end
@@ -102,14 +123,15 @@ function SimpleShopDataManager:applyFilters(category, searchText)
         itemsToShow = self.categories[self.currentCategory] or {}
     end
     
-    -- 根据搜索文本筛选
+    -- 根据搜索文本筛选（同时匹配显示名和物品ID）
     if self.currentSearch and self.currentSearch ~= "" then
         local filtered = {}
         local searchLower = string.lower(self.currentSearch)
-        
+
         for _, item in ipairs(itemsToShow) do
-            local itemName = string.lower(item.itemName)
-            if string.find(itemName, searchLower, 1, true) then
+            local itemName = string.lower(item.itemName or "")
+            local itemType = string.lower(item.itemType or "")
+            if string.find(itemName, searchLower, 1, true) or string.find(itemType, searchLower, 1, true) then
                 table.insert(filtered, item)
             end
         end

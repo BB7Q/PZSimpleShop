@@ -5,6 +5,8 @@ SimpleShop = {};
 SimpleShop.modData = {};
 -- 玩家UI界面对象数组
 SimpleShop.upgradeScreen = {};
+-- 玩家商品定价窗口对象数组
+SimpleShop.adminScreen = {};
 -- 配置内容数组
 SimpleShop.settings = {};
 -- 玩家临时金钱数组
@@ -74,6 +76,59 @@ end
 
 
 -- **************************************************************************************
+-- 是否有权限编辑商品与价格（单人/主机默认允许，联机需要管理员或协管）
+-- **************************************************************************************
+SimpleShop.CanManageItems = function(playerNum)
+	if not isClient() then
+		return true;
+	end
+	if isAdmin and isAdmin() then
+		return true;
+	end
+	local level = getAccessLevel and getAccessLevel() or nil;
+	return level == "admin" or level == "moderator" or level == "overseer";
+end
+
+-- **************************************************************************************
+-- 显示商品定价窗口
+-- **************************************************************************************
+SimpleShop.showAdminScreen = function(playerNum)
+	if not SimpleShop.CanManageItems(playerNum) then
+		return;
+	end
+
+	require "ISUI/ISSimpleShopAdmin";
+
+	if not SimpleShop.adminScreen[playerNum] then
+		local screenWidth = getPlayerScreenWidth(playerNum);
+		local screenHeight = getPlayerScreenHeight(playerNum);
+		-- 定价窗口内容较多（工具栏 + 列表 + 分页 + 操作栏），给足宽度避免挤压
+		local windowWidth = math.min(920, screenWidth - 40);
+		local windowHeight = math.min(700, screenHeight - 40);
+		local x = (screenWidth - windowWidth) / 2;
+		local y = (screenHeight - windowHeight) / 2;
+		SimpleShop.adminScreen[playerNum] = ISSimpleShopAdmin:new(x, y, windowWidth, windowHeight, playerNum, SimpleShop.settings);
+		SimpleShop.adminScreen[playerNum]:initialise();
+		SimpleShop.adminScreen[playerNum]:addToUIManager();
+		SimpleShop.adminScreen[playerNum]:setVisible(false);
+	end
+
+	SimpleShop.adminScreen[playerNum].needRefresh = true;
+	SimpleShop.adminScreen[playerNum]:setVisible(true);
+end
+
+-- **************************************************************************************
+-- 价格变化后刷新所有已打开的商店窗口
+-- **************************************************************************************
+SimpleShop.refreshAllShops = function()
+	for _, screen in pairs(SimpleShop.upgradeScreen) do
+		if screen and screen.refreshDataManager then
+			screen:refreshDataManager();
+		end
+	end
+end
+
+-- **************************************************************************************
 -- 填充世界对象上下文菜单
 -- **************************************************************************************
 SimpleShop.doWorldContextMenu = function(playerNum, context, worldobjects)
@@ -88,7 +143,17 @@ SimpleShop.doWorldContextMenu = function(playerNum, context, worldobjects)
 		local iconTexture = getTexture("media/ui/menu_icon.png")
 		if iconTexture and option then
 			option.iconTexture = iconTexture
-			option.icon = nil 
+			option.icon = nil
+		end
+		-- 管理员：商品定价入口
+		if SimpleShop.CanManageItems(playerNum) then
+			local adminOption = context:addOption(getText("UI_SimpleShop_Manage"), nil, function()
+				SimpleShop.showAdminScreen(playerNum);
+			end);
+			if iconTexture and adminOption then
+				adminOption.iconTexture = iconTexture
+				adminOption.icon = nil
+			end
 		end
 	end
 end
@@ -108,7 +173,17 @@ SimpleShop.doInventoryContextMenu = function(playerNum, context, items)
 		local iconTexture = getTexture("media/ui/menu_icon.png")
 		if iconTexture and option then
 			option.iconTexture = iconTexture
-			option.icon = nil 
+			option.icon = nil
+		end
+		-- 管理员：商品定价入口
+		if SimpleShop.CanManageItems(playerNum) then
+			local adminOption = context:addOption(getText("UI_SimpleShop_Manage"), nil, function()
+				SimpleShop.showAdminScreen(playerNum);
+			end);
+			if iconTexture and adminOption then
+				adminOption.iconTexture = iconTexture
+				adminOption.icon = nil
+			end
 		end
 	end
 end
@@ -154,14 +229,26 @@ SimpleShop.init = function()
 	-- 读取本地配置文件
 	SimpleShop.LoadSettings(); 
 	SimpleShop.InitPlayer();
+	-- 确保商品价格表已加载（OnInitGlobalModData 未触发时兜底）
+	if SimpleShopItemStore and not SimpleShopItemStore.isLoaded then
+		SimpleShopItemStore.initialize(false);
+	end
+	-- 价格变化后刷新已打开的商店窗口
+	if SimpleShopItemStore then
+		SimpleShopItemStore.addListener(SimpleShop.refreshAllShops);
+	end
 	-- 注册上下文菜单事件
 	Events.OnFillInventoryObjectContextMenu.Add(SimpleShop.doInventoryContextMenu);
 	Events.OnFillWorldObjectContextMenu.Add(SimpleShop.doWorldContextMenu);
 	-- 注册僵尸击杀事件
 	Events.OnPlayerAttackFinished.Add(SimpleShop.onPlayerAttackFinished);
-	
+
 	-- 加载客户端网络命令模块（联机支持）
 	require "SimpleShopClientCommands"
+	-- 联机时主动拉取服务端的商品价格表
+	if isClient() then
+		SimpleShopClientCommands.SendPricesRequest();
+	end
 end
 
 -- **************************************************************************************
@@ -179,6 +266,7 @@ SimpleShop.prepareReInit = function()
 	end
 	-- 商店面板要初始化，所以将面板对象置空
 	SimpleShop.upgradeScreen[playerIndex] = nil;
+	SimpleShop.adminScreen[playerIndex] = nil;
 	-- 再次初始化玩家金钱
 	Events.OnCreatePlayer.Add(SimpleShop.InitPlayer);
 end

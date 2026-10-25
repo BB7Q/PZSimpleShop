@@ -3,6 +3,7 @@
 if isClient() then return end
 
 require "SimpleShopBasic"
+require "SimpleShopItemStore"
 
 SimpleShopServer = {}
 SimpleShopServer.Commands = {}
@@ -128,58 +129,74 @@ end
 -- @param args 参数表 {itemType, quantity, totalCost}
 -- **************************************************************************************
 SimpleShopServer.Commands.Purchase = function(playerObj, args)
-    if not playerObj or not args or not args.itemType or args.quantity <= 0 or args.totalCost < 0 then
+    if not playerObj or not args or not args.itemType then
         print("[SimpleShop] Invalid purchase request from client")
         return
     end
-    
+
+    local quantity = math.floor(tonumber(args.quantity) or 0)
+    if quantity <= 0 then
+        print("[SimpleShop] Invalid purchase quantity from client")
+        return
+    end
+
+    -- 价格以服务端价格表为准（忽略客户端传来的金额，防止篡改）
+    local unitCost = SimpleShopItemStore.getPrice(args.itemType)
+    if unitCost == nil then
+        print("[SimpleShop] Item not for sale: " .. tostring(args.itemType))
+        sendServerCommand(playerObj, "SimpleShop", "purchaseFailed", {reason = "not_for_sale"})
+        return
+    end
+    local totalCost = unitCost * quantity
+
     -- 确保玩家金钱已初始化
     SimpleShopServer.InitPlayerMoney(playerObj)
-    
+
     local modData = playerObj:getModData()
-    
+
     -- 验证玩家是否有足够金钱
     local currentMoney = modData.playerMoney or 0
-    if currentMoney < args.totalCost then
-        print("[SimpleShop] Player " .. tostring(playerObj:getUsername()) .. " has insufficient funds: " .. currentMoney .. " < " .. args.totalCost)
+    if currentMoney < totalCost then
+        print("[SimpleShop] Player " .. tostring(playerObj:getUsername()) .. " has insufficient funds: " .. currentMoney .. " < " .. totalCost)
         sendServerCommand(playerObj, "SimpleShop", "purchaseFailed", {reason = "insufficient_funds"})
         return
     end
-    
+
     -- 扣除金钱
-    modData.playerMoney = currentMoney - args.totalCost
+    modData.playerMoney = currentMoney - totalCost
     
     -- 添加物品到玩家背包
     local inventory = playerObj:getInventory()
     local addedCount = 0
     
     -- 逐个添加物品并同步到客户端
-    for i = 1, args.quantity do
+    for i = 1, quantity do
         local item = inventory:AddItem(args.itemType)
         if item then
             -- 同步物品到客户端
             sendAddItemToContainer(inventory, item)
             addedCount = addedCount + 1
         else
-            print("[SimpleShop] Failed to add item " .. tostring(i) .. " of " .. tostring(args.quantity))
+            print("[SimpleShop] Failed to add item " .. tostring(i) .. " of " .. tostring(quantity))
         end
     end
     
     -- 标记背包为脏，需要更新
     inventory:setDrawDirty(true)
     
-    if addedCount == args.quantity then
-        print("[SimpleShop] Player " .. tostring(playerObj:getUsername()) .. " purchased " .. tostring(args.quantity) .. "x " .. tostring(args.itemType))
+    if addedCount == quantity then
+        print("[SimpleShop] Player " .. tostring(playerObj:getUsername()) .. " purchased " .. tostring(quantity) .. "x " .. tostring(args.itemType))
         
         -- 发送成功消息回客户端
         sendServerCommand(playerObj, "SimpleShop", "purchaseSuccess", {
             itemType = args.itemType,
-            quantity = args.quantity,
-            totalCost = args.totalCost,
+            quantity = quantity,
+            totalCost = totalCost,
+            unitCost = unitCost,
             newMoney = modData.playerMoney
         })
     else
-        print("[SimpleShop] Failed to add items for player " .. tostring(playerObj:getUsername()) .. " (added " .. addedCount .. "/" .. args.quantity .. ")")
+        print("[SimpleShop] Failed to add items for player " .. tostring(playerObj:getUsername()) .. " (added " .. addedCount .. "/" .. quantity .. ")")
         -- 退款
         modData.playerMoney = currentMoney
         sendServerCommand(playerObj, "SimpleShop", "purchaseFailed", {reason = "item_add_failed"})
@@ -199,6 +216,101 @@ SimpleShopServer.Commands.RequestMoney = function(playerObj, args)
     sendServerCommand(playerObj, "SimpleShop", "updateMoney", {
         money = currentMoney
     })
+end
+
+-- **************************************************************************************
+-- 是否有权限编辑商品价格
+-- 单人/主机（isServer() 为 false）直接放行；专用服务器要求管理员/协管
+-- **************************************************************************************
+SimpleShopServer.CanManageItems = function(playerObj)
+    if not isServer() then return true end
+    if not playerObj then return false end
+    local level = playerObj:getAccessLevel()
+    return level == "admin" or level == "moderator" or level == "overseer" or level == "gm"
+end
+
+-- **************************************************************************************
+-- 价格表快照（复制一份，避免把内部表直接塞进网络包）
+-- **************************************************************************************
+local function snapshotPrices()
+    local result = {}
+    for fullType, cost in pairs(SimpleShopItemStore.getPrices() or {}) do
+        result[fullType] = cost
+    end
+    return result
+end
+
+-- **************************************************************************************
+-- 下发价格表：playerObj 为 nil 时广播给所有客户端
+-- 这是 Global ModData 同步之外的第二条通道，保证客户端一定能拿到最新价格
+-- **************************************************************************************
+SimpleShopServer.SendPrices = function(playerObj)
+    local args = { prices = snapshotPrices() }
+    if playerObj then
+        sendServerCommand(playerObj, "SimpleShop", "pricesUpdated", args)
+    else
+        sendServerCommand("SimpleShop", "pricesUpdated", args)
+    end
+end
+
+-- **************************************************************************************
+-- 客户端请求同步商品价格表
+-- **************************************************************************************
+SimpleShopServer.Commands.RequestPrices = function(playerObj, args)
+    if not playerObj then return end
+    ModData.transmit(SimpleShopItemStore.KEY)
+    SimpleShopServer.SendPrices(playerObj)
+end
+
+-- **************************************************************************************
+-- 上架/修改商品价格
+-- **************************************************************************************
+SimpleShopServer.Commands.SetItemPrice = function(playerObj, args)
+    if not playerObj or not args or not args.itemType then return end
+    if not SimpleShopServer.CanManageItems(playerObj) then
+        sendServerCommand(playerObj, "SimpleShop", "priceChangeRejected", {reason = "no_permission"})
+        return
+    end
+
+    local cost = SimpleShopItemStore.sanitizePrice(args.cost)
+    if not cost then
+        sendServerCommand(playerObj, "SimpleShop", "priceChangeRejected", {reason = "invalid_price"})
+        return
+    end
+
+    print("[SimpleShop] " .. tostring(playerObj:getUsername()) .. " set price: " .. tostring(args.itemType) .. " = " .. tostring(cost))
+    SimpleShopItemStore.setPrice(args.itemType, cost)
+    SimpleShopServer.SendPrices()
+end
+
+-- **************************************************************************************
+-- 下架商品
+-- **************************************************************************************
+SimpleShopServer.Commands.RemoveItemPrice = function(playerObj, args)
+    if not playerObj or not args or not args.itemType then return end
+    if not SimpleShopServer.CanManageItems(playerObj) then
+        sendServerCommand(playerObj, "SimpleShop", "priceChangeRejected", {reason = "no_permission"})
+        return
+    end
+
+    print("[SimpleShop] " .. tostring(playerObj:getUsername()) .. " removed item: " .. tostring(args.itemType))
+    SimpleShopItemStore.removePrice(args.itemType)
+    SimpleShopServer.SendPrices()
+end
+
+-- **************************************************************************************
+-- 恢复默认商品清单
+-- **************************************************************************************
+SimpleShopServer.Commands.ResetItemPrices = function(playerObj, args)
+    if not playerObj then return end
+    if not SimpleShopServer.CanManageItems(playerObj) then
+        sendServerCommand(playerObj, "SimpleShop", "priceChangeRejected", {reason = "no_permission"})
+        return
+    end
+
+    print("[SimpleShop] " .. tostring(playerObj:getUsername()) .. " reset item prices to default")
+    SimpleShopItemStore.resetToDefault()
+    SimpleShopServer.SendPrices()
 end
 
 -- **************************************************************************************
@@ -245,6 +357,10 @@ end
 -- 初始化已在线的玩家（服务器启动时）
 local function onServerStarted()
     print("[SimpleShop] Server started, initializing online players...")
+    -- 确保商品价格表已初始化（OnInitGlobalModData 未触发时兜底）
+    if SimpleShopItemStore and not SimpleShopItemStore.isLoaded then
+        SimpleShopItemStore.initialize(false)
+    end
     for i = 0, getNumActivePlayers() - 1 do
         local player = getSpecificPlayer(i)
         if player then

@@ -11,6 +11,8 @@ SimpleShop 是一个轻松实用的购物mod，为玩家提供便捷的商店界
     [*] 右键菜单 - 在世界界面或物品栏中右键点击，选择"打开商店"
     [*] 多语言支持 - 内置中英文界面
     [*] 可配置 - 支持自定义初始金钱和物品价格
+    [*] 游戏内定价 - 管理员可从全部物品脚本（含其他模组物品）中挑选物品并设定售价，无需改代码
+    [*] 价格持久化 - 价格表随存档保存，退出游戏或重启后依然生效
 [/list]
 
 [h2]如何使用[/h2]
@@ -20,6 +22,17 @@ SimpleShop 是一个轻松实用的购物mod，为玩家提供便捷的商店界
     [*] 搜索物品：使用搜索框快速查找所需物品
     [*] 分类筛选：使用下拉菜单按类别浏览物品
     [*] 获得金钱：击杀僵尸可获得金钱奖励，新角色开始时有初始资金
+    [*] 商品定价：点击商店底部"定价"按钮（或右键菜单"管理商品"），可按名称/ID 搜索、按来源模组与物品类型两级筛选、分页浏览，选中物品输入价格后点"上架/改价"
+[/list]
+
+[h3]游戏内定价说明[/h3]
+[list]
+    [*] 权限：需要管理员权限，单人存档默认即为管理员，可直接使用
+    [*] 两种视图：默认显示"已上架商品"（带"已上架"标记与当前价格，选中即可改价）；切换到"全部物品"可浏览全部物品脚本，包括其他模组新增的物品（模组内部的 xxx_Hidden 变体与隐藏/废弃物品已自动排除）
+    [*] 查找物品：支持按名称或物品 ID（如 Base.Axe）搜索；两级筛选先按来源模组、再按物品类型（第二个下拉只列出所选模组的类型）；列表按页翻动，物品数量再多也不会卡顿或漏项
+    [*] 价格范围：0 ~ 999999 的整数，0 表示免费
+    [*] 下架 / 恢复默认：可将单个物品移出商店，或一键恢复为 SimpleShopItems.lua 的初始清单
+    [*] 数据存储：价格表保存在世界级全局 ModData 中，随存档持久化；购买时按该价格表扣款
 [/list]
 
 [h2]配置选项[/h2]
@@ -40,7 +53,8 @@ SimpleShopBasic = {
 }
 [/code]
 
-[b]物品价格配置 (SimpleShopItems.lua)[/b]
+[b]默认物品清单 (SimpleShopItems.lua)[/b]
+[color=#999999]提示：游戏内定价后，价格以世界存档中的价格表为准；本文件仅在首次创建价格表或点击"恢复默认"时使用。[/color]
 [code]
 SimpleShopItems = {
     -- 基础生存物资
@@ -73,7 +87,11 @@ SimpleShopItems = {
 [/code]
 
 [b]自定义物品[/b]
-商店支持添加来自其他mod的物品，即使物品不存在也没关系，mod会自动检测只显示存在的物品。要添加新物品到商店，只需在SimpleShopItems.lua中添加新行：
+商店支持添加来自其他mod的物品，即使物品不存在也没关系，mod会自动检测只显示存在的物品。要添加新物品到商店，有两种方式：
+
+1. 推荐：进入游戏后用管理员身份打开商店 → 点击底部"定价"按钮 → 切换到"全部物品" → 搜索 / 选择来源模组与物品类型 / 翻页找到目标物品 → 选中后输入价格 → 点击"上架/改价"。价格会保存在存档中，无需改代码，也不需要重启游戏。已上架的商品可以在"已上架商品"视图里直接选中并改价或下架。
+2. 修改SimpleShopItems.lua（作为默认清单，仅在首次创建价格表或"恢复默认"时生效）：
+
 [code]
 ["物品ID"] = 价格, -- 物品名称
 [/code]
@@ -157,6 +175,23 @@ SimpleShop.HasEnoughMoney(amount, playerIndex)
 
 这些方法可用于实现任务奖励、自定义商店等需要修改玩家金钱的功能。
 
+[h3]商品价格表[/h3]
+[code]
+-- 读取 / 查询
+local prices = SimpleShopItemStore.getPrices()      -- { ["Base.Axe"] = 120, ... }
+local cost   = SimpleShopItemStore.getPrice("Base.Axe")
+local count  = SimpleShopItemStore.getCount()
+
+-- 修改（建议直接在商店内的定价界面操作）
+SimpleShopItemStore.setPrice("Base.Axe", 120)        -- 返回 true 表示成功
+SimpleShopItemStore.removePrice("Base.Axe")          -- 下架
+SimpleShopItemStore.resetToDefault()                 -- 恢复 SimpleShopItems.lua 默认清单
+
+-- 价格变化监听（界面自动刷新用）
+SimpleShopItemStore.addListener(function() ... end)
+[/code]
+价格会被校验为 0 ~ 999999 的整数，非法值直接返回 false / nil；修改后自动写入全局 ModData，随存档一起保存。
+
 Workshop ID: 3619356125
 Mod ID: SimpleShop
 
@@ -173,6 +208,8 @@ SimpleShop is a practical and user-friendly shopping mod that provides players w
     [*] Right-click menu - Right-click in the world or inventory and select "Open Shop"
     [*] Multi-language support - Built-in Chinese and English interface
     [*] Configurable - Support for custom initial money and item prices
+    [*] In-game pricing - Admins can pick any item script (including items added by other mods) and set its price
+    [*] Persistent prices - The price table is saved with the world and kept after quitting or restarting
 [/list]
 
 [h2]How to Use[/h2]
@@ -182,6 +219,17 @@ SimpleShop is a practical and user-friendly shopping mod that provides players w
     [*] Search items: Use the search box to quickly find items you need
     [*] Category filter: Use the dropdown menu to browse items by category
     [*] Earn money: Get money rewards by killing zombies, new characters start with initial funds
+    [*] Pricing: Click the "Pricing" button at the bottom of the shop (or the "Manage Items" right-click menu entry); search by name / ID, filter by source mod and item type, and page through the list, then choose an item, type a price and click "Set"
+[/list]
+
+[h3]About In-Game Pricing[/h3]
+[list]
+    [*] Permission: Requires admin access; a singleplayer save is admin by default, so it works right away
+    [*] Two views: "Listed" (default) shows what is currently on sale with a "Listed" badge and its price, so you can select it and change the price; switch to "All items" to browse every item script, including items added by other mods
+    [*] Finding items: Search by display name or item ID (e.g. Base.Axe); two-level filtering picks the source mod first, then the item type (the second dropdown only lists types that exist in that mod); results are paged - large item sets stay fast and nothing is skipped
+    [*] Price range: Integer from 0 to 999999 (0 means free)
+    [*] Remove / Reset: Remove a single item from the shop, or restore the default list from SimpleShopItems.lua
+    [*] Storage: Prices live in a world-level global ModData entry, so they persist across sessions; purchases are charged from that same table
 [/list]
 
 [h2]Configuration Options[/h2]
@@ -202,7 +250,8 @@ SimpleShopBasic = {
 }
 [/code]
 
-[b]Item Price Configuration (SimpleShopItems.lua)[/b]
+[b]Default Item List (SimpleShopItems.lua)[/b]
+[color=#999999]Note: after in-game pricing is used, the price table stored in the world save takes priority; this file is only used when the price table is first created or when "Reset Default" is clicked.[/color]
 [code]
 SimpleShopItems = {
     -- Basic Survival Supplies
@@ -318,6 +367,23 @@ SimpleShop.HasEnoughMoney(amount, playerIndex)
 Check if the specified player has enough money.
 
 These methods can be used to implement features such as quest rewards, custom shops, or any functionality that requires modifying player money.
+
+[h3]Item Price Table[/h3]
+[code]
+-- Read / query
+local prices = SimpleShopItemStore.getPrices()      -- { ["Base.Axe"] = 120, ... }
+local cost   = SimpleShopItemStore.getPrice("Base.Axe")
+local count  = SimpleShopItemStore.getCount()
+
+-- Modify (using the in-game pricing window is recommended)
+SimpleShopItemStore.setPrice("Base.Axe", 120)        -- returns true on success
+SimpleShopItemStore.removePrice("Base.Axe")          -- remove from shop
+SimpleShopItemStore.resetToDefault()                 -- restore the SimpleShopItems.lua list
+
+-- Price change listener (used to auto-refresh the UI)
+SimpleShopItemStore.addListener(function() ... end)
+[/code]
+Prices are validated as integers between 0 and 999999; invalid values return false / nil. Changes are written into the world-level global ModData and saved together with the world.
 
 Workshop ID: 3619356125
 Mod ID: SimpleShop

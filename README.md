@@ -14,6 +14,7 @@ SimpleShop 是一个简单的购物mod，为玩家提供了商店界面用于购
 - 🖱️ **右键菜单** - 在世界界面或物品栏中右键点击，选择"打开商店"
 - 🌍 **多语言支持** - 内置中英文界面
 - ⚙️ **可配置** - 支持自定义初始金钱和物品价格
+- 🏷️ **游戏内定价** - 管理员可在游戏内从全部物品脚本（含其他模组物品）中选择物品并设定售价，价格随存档持久化
 
 ## 安装方法
 
@@ -37,13 +38,28 @@ SimpleShop 是一个简单的购物mod，为玩家提供了商店界面用于购
 - **搜索功能**: 使用搜索框快速查找所需物品
 - **分类筛选**: 使用下拉菜单按类别浏览物品
 
+### 商品定价（管理员）
+1. 以管理员身份进入游戏（单人存档默认即为管理员）
+2. 打开商店窗口，点击底部 **定价** 按钮；或在世界/物品栏右键菜单中选择 **管理商品**
+3. 在弹出的「商品定价」窗口中：
+   - 顶部工具栏：搜索框（按物品名称或物品 ID 如 `Base.Axe` 过滤）、**已上架商品 / 全部物品** 视图切换
+   - 默认视图为 **已上架商品**：每行带绿色 **已上架** 徽标与当前价格，选中即可直接改价或下架
+   - 第二行是两级筛选：先选 **来源模组**（原版 / 各模组），再从 **物品类型** 里选具体类别，第二个下拉只列出所选模组的类型
+   - 切到 **全部物品** 可浏览全部物品脚本（**包含其他模组添加的物品**），同样支持两级筛选与分页
+   - 列表只收录真实可用的物品脚本：`Hidden` / `Obsolete` 物品，以及模组内部使用的 `xxx_Hidden` 变体（同一件衣服的内部样式副本，显示名与本体完全相同）不会出现在列表里
+   - 列表支持分页（每页条数按窗口高度自动计算），底部显示 `页码 X / Y` 与当前过滤结果总数
+   - 选中物品 → 输入价格（0 ~ 999999 的整数）→ 点击 **上架/改价**；**下架** 移出商店；**恢复默认** 重置为 `SimpleShopItems.lua` 的初始清单
+4. 定价结果立即生效，已打开的商店窗口会自动刷新
+
+**持久化说明**：价格表保存在世界级全局 ModData（键名 `SimpleShopPrices`）中，随存档保存，重启游戏/换角色都不会丢失；购买金额按该价格表结算。
+
 ### 获得金钱
 - 击杀僵尸：每杀死一个僵尸获得金钱奖励
 - 初始金钱：新角色开始时有100初始资金
 
 ## 配置选项
 
-模组支持以下配置（位于 `SimpleShopSettings.lua`）：
+模组支持以下配置（位于 `common/media/lua/shared/`）：
 
 ```lua
 SimpleShopBasic = {
@@ -81,6 +97,8 @@ SimpleShopItems = {
 }
 ```
 
+> 说明：游戏内定价过的价格会写入存档中的价格表（全局 ModData `SimpleShopPrices`），优先级高于 `SimpleShopItems.lua`。修改 `SimpleShopItems.lua` 只影响"首次加载"和"恢复默认"时的初始清单。
+
 ## 文件结构
 
 ```
@@ -88,23 +106,33 @@ SimpleShop/
 ├── Contents/
 │   └── mods/
 │       └── SimpleShop/
-│           ├── common/
-│           │   ├── mod.info              -- 模组信息文件
-│           │   ├── poster.png            -- 模组海报
-│           │   └── media/
-│           │       └── lua/
-│           │           ├── client/
-│           │           │   ├── SimpleShop.lua          -- 主逻辑文件
-│           │           │   └── ISUI/
-│           │           │       └── ISSimpleShop.lua    -- UI界面
-│           │           └── shared/
-│           │               ├── SimpleShopBasic.lua     -- 基础设置
-│           │               ├── SimpleShopItems.lua     -- 物品配置
-│           │               └── Translate/
-│           │                   ├── CN/UI.json          -- 中文界面翻译
-│           │                   ├── CN/Mod.json         -- 中文名称/描述
-│           │                   ├── EN/UI.json          -- 英文界面翻译（其他语言回退）
-│           │                   └── EN/Mod.json         -- 英文名称/描述
+│           ├── 42/                        -- B42 版本信息
+│           │   ├── mod.info
+│           │   └── shop.png
+│           └── common/
+│               ├── mod.info              -- 模组信息文件
+│               ├── shop.png              -- 模组海报
+│               └── media/
+│                   ├── ui/menu_icon.png  -- 菜单图标
+│                   └── lua/
+│                       ├── client/
+│                       │   ├── SimpleShop.lua            -- 主逻辑 / 右键菜单入口
+│                       │   ├── SimpleShopClientCommands.lua -- 客户端事件 -> 服务端请求
+│                       │   └── ISUI/
+│                       │       ├── ISSimpleShop.lua      -- 商店界面
+│                       │       └── ISSimpleShopAdmin.lua -- 商品定价界面
+│                       ├── server/
+│                       │   └── SimpleShopServer.lua      -- 服务端权威逻辑（购买/定价）
+│                       └── shared/
+│                           ├── SimpleShopBasic.lua       -- 基础设置
+│                           ├── SimpleShopItems.lua       -- 默认物品清单
+│                           ├── SimpleShopDataManager.lua -- 商品数据/筛选
+│                           ├── SimpleShopItemStore.lua   -- 价格表持久化（全局 ModData）
+│                           └── Translate/
+│                               ├── CN/UI.json            -- 中文界面翻译
+│                               ├── CN/Mod.json           -- 中文名称/描述
+│                               ├── EN/UI.json            -- 英文界面翻译（其他语言回退）
+│                               └── EN/Mod.json           -- 英文名称/描述
 ├── icon.svg                              -- 模组图标
 ├── preview.png                           -- 预览图片
 └── README.md                            -- 项目说明
@@ -123,16 +151,27 @@ SimpleShop/
    - 货币管理
    - 事件处理
    - 玩家数据持久化
+   - 右键菜单 / 管理员入口
 
-2. **用户界面** (`ISSimpleShop.lua`)
+2. **用户界面** (`ISSimpleShop.lua` / `ISSimpleShopAdmin.lua`)
    - 滚动列表显示
    - 物品分类和搜索功能
    - 物品选择交互
    - 购买逻辑
+   - 商品定价（已上架视图带徽标/价格、全量物品搜索 + 模组/类型两级筛选 + 分页、改价/下架/恢复默认）
 
-3. **配置系统** (`SimpleShopBasic.lua`和`SimpleShopItems.lua`)
+3. **价格持久化** (`SimpleShopItemStore.lua`)
+   - 世界级全局 ModData（`SimpleShopPrices`）存储价格表
+   - 主控端写入价格表，其余端只发请求
+   - 价格变化监听器（界面自动刷新）
+
+4. **结算与同步** (`SimpleShopServer.lua` / `SimpleShopClientCommands.lua`)
+   - 购买金额按价格表重算，拒绝客户端伪造金额
+   - 定价操作的权限校验（仅管理员可改价）
+
+5. **配置系统** (`SimpleShopBasic.lua` / `SimpleShopItems.lua`)
    - 基础设置
-   - 物品价格配置
+   - 默认物品清单（仅在首次创建价格表或"恢复默认"时使用）
 
 ## API接口
 
