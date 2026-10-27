@@ -3,10 +3,21 @@ VERSION = 1,
 /* SimpleShop -- world-level rules (sandbox options page "SimpleShop").
    AllowManageItems : allow item configuration (prices / display order).
    The client-side "Show Manage Items button" toggle in Options -> Mods -> SimpleShop
-   only takes effect when this world option is enabled. */
+   only takes effect when this world option is enabled.
+
+   ConfigScope : where the price table (items + display order) is stored.
+     1 = whole game (Zomboid/Lua/SimpleShopPrices.ini, shared by every save)   [default]
+     2 = this save only (world-level global ModData, saved with the world) */
 
 option SimpleShop.AllowManageItems
 {
     type = boolean, default = false,
     page = SimpleShop, translation = SimpleShopAllowManageItems,
+}
+
+option SimpleShop.ConfigScope
+{
+    type = enum, numValues = 2, default = 1,
+    page = SimpleShop, translation = SimpleShopConfigScope,
+    valueTranslation = SimpleShopConfigScopeValues,
 }

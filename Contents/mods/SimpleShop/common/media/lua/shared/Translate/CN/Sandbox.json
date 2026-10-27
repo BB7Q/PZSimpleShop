@@ -1,5 +1,9 @@
 {
     "Sandbox_SimpleShop": "简易商店",
     "Sandbox_SimpleShopAllowManageItems": "允许配置商品",
-    "Sandbox_SimpleShopAllowManageItems_tooltip": "允许有管理权限的玩家调整商品价格与陈列顺序；关闭后按钮、快捷键与联机改价请求全部拒绝（默认关闭）。玩家本机还需在 选项 → 模组 → 简易商店 里勾选「显示管理按钮」"
+    "Sandbox_SimpleShopAllowManageItems_tooltip": "允许有管理权限的玩家调整商品价格与陈列顺序；关闭后按钮、快捷键与联机改价请求全部拒绝（默认关闭）。玩家本机还需在 选项 → 模组 → 简易商店 里勾选「显示管理按钮」",
+    "Sandbox_SimpleShopConfigScope": "价格表范围",
+    "Sandbox_SimpleShopConfigScope_tooltip": "价格表（商品清单与陈列顺序）存在哪里。\n整个游戏生效（默认）：存到游戏目录 Zomboid/Lua/SimpleShopPrices.ini，所有存档、所有角色共用一份，新开档不用重新定价。\n仅本存档：只存在当前存档里，换存档/新开档回到默认清单。\n两种范围互不影响，切换后当前这份价格表会保留，不会丢定价。",
+    "Sandbox_SimpleShopConfigScopeValues_option1": "整个游戏生效",
+    "Sandbox_SimpleShopConfigScopeValues_option2": "仅本存档"
 }

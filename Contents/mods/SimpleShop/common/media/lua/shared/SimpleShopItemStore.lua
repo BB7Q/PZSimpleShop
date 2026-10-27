@@ -1,5 +1,6 @@
 -- SimpleShop 商品价格存储
--- 价格表与商品陈列顺序保存在世界级全局 ModData 中，随存档持久化（多人模式下由服务端权威维护）
+-- 价格表与商品陈列顺序默认保存在"全局配置文件"（Zomboid/Lua/SimpleShopPrices.ini），整个游戏生效、跨存档共用；
+-- 同时镜像一份到世界级全局 ModData（键名 SimpleShopPrices），供联机同步与老存档兼容（多人模式下由服务端权威维护）
 -- 数据结构: { initialized = true, prices = { ["Base.Bread"] = 75, ... }, order = { "Base.Bread", ... } }
 
 SimpleShopItemStore = SimpleShopItemStore or {};
@@ -38,6 +39,159 @@ end
 -- **************************************************************************************
 function SimpleShopItemStore.getModData()
 	return ModData.getOrCreate(SimpleShopItemStore.KEY);
+end
+
+-- **************************************************************************************
+-- 两种存储模式
+--   global = 整个游戏生效：价格表写 <Zomboid 用户目录>/Lua/SimpleShopPrices.ini，所有存档共用一份
+--   save   = 只在当前存档生效：价格表放世界级全局 ModData（随存档，老行为）
+--
+-- 优先级（高 -> 低）：
+--   1. 沙箱选项 SimpleShop.ConfigScope（世界级；联机时服务端权威并自动同步给客户端）
+--        1 = 整个游戏生效（默认）   2 = 仅本存档
+--   2. <Zomboid 用户目录>/Lua/SimpleShopConfig.ini 的 mode= 行
+--      （只在这个世界没有该沙箱选项时兜底：加选项之前创建的老存档、手工配置的服务器）
+--   3. 默认 global
+-- **************************************************************************************
+SimpleShopItemStore.MODE_GLOBAL = "global";
+SimpleShopItemStore.MODE_SAVE = "save";
+SimpleShopItemStore.DEFAULT_MODE = "global";
+SimpleShopItemStore.mode = nil;        -- getMode() 的缓存
+
+-- 沙箱 enum ConfigScope 的下标（与 sandbox-options.txt 的顺序一致）
+SimpleShopItemStore.SCOPE_GLOBAL = 1;
+SimpleShopItemStore.SCOPE_SAVE = 2;
+
+-- 懒加载配置模块：shared 目录下同名文件正常会先于本文件加载，这里仍然兜底 require 一次
+function SimpleShopItemStore.configFile()
+	if type(SimpleShopConfigFile) == "table" then return SimpleShopConfigFile; end
+	pcall(require, "SimpleShopConfigFile");
+	if type(SimpleShopConfigFile) == "table" then return SimpleShopConfigFile; end
+	return nil;
+end
+
+-- 沙箱选项里的范围：返回 MODE_GLOBAL / MODE_SAVE；老存档没有该项时返回 nil（交给 ini 兜底）
+function SimpleShopItemStore.getSandboxScope()
+	local value = SimpleShopItemStore.getSandboxOption("ConfigScope", nil);
+	if value == nil then return nil; end
+	if type(value) == "string" then
+		local text = string.lower(value);
+		if text == SimpleShopItemStore.MODE_GLOBAL or text == SimpleShopItemStore.MODE_SAVE then
+			return text;
+		end
+		return nil;
+	end
+	value = tonumber(value);
+	if value == SimpleShopItemStore.SCOPE_GLOBAL then return SimpleShopItemStore.MODE_GLOBAL; end
+	if value == SimpleShopItemStore.SCOPE_SAVE then return SimpleShopItemStore.MODE_SAVE; end
+	return nil;
+end
+
+-- 当前存储模式（"global" / "save"）：沙箱 > 兜底 ini > 默认
+function SimpleShopItemStore.getMode()
+	if SimpleShopItemStore.mode then return SimpleShopItemStore.mode; end
+
+	local mode = SimpleShopItemStore.getSandboxScope();
+	if not mode then
+		local module = SimpleShopItemStore.configFile();
+		if module and type(module.readMode) == "function" then
+			local ok, value = pcall(module.readMode);
+			if ok then mode = value; end
+		end
+	end
+	if mode ~= SimpleShopItemStore.MODE_SAVE and mode ~= SimpleShopItemStore.MODE_GLOBAL then
+		mode = SimpleShopItemStore.DEFAULT_MODE;
+	end
+	SimpleShopItemStore.mode = mode;
+	return mode;
+end
+
+-- 是否"整个游戏生效"模式
+function SimpleShopItemStore.isGlobalMode()
+	return SimpleShopItemStore.getMode() == SimpleShopItemStore.MODE_GLOBAL;
+end
+
+-- 把模式写进 SimpleShopConfig.ini
+function SimpleShopItemStore.saveMode(mode)
+	local module = SimpleShopItemStore.configFile();
+	if not module or type(module.writeMode) ~= "function" then return false; end
+	local ok, result = pcall(module.writeMode, mode);
+	if not ok then
+		log("write mode failed: " .. tostring(result));
+		return false;
+	end
+	return result == true;
+end
+
+-- 读取全局价格表；save 模式或没有可用文件时返回 nil
+function SimpleShopItemStore.loadGlobalConfig()
+	if not SimpleShopItemStore.isGlobalMode() then return nil; end
+	local module = SimpleShopItemStore.configFile();
+	if not module or type(module.read) ~= "function" then return nil; end
+	local ok, data = pcall(module.read);
+	if not ok then
+		log("read global config failed: " .. tostring(data));
+		return nil;
+	end
+	if type(data) ~= "table" or type(data.prices) ~= "table" then return nil; end
+	return data;
+end
+
+-- 写入全局价格表（主控端：单人 / 主机 / 服务端；save 模式下不写）
+function SimpleShopItemStore.saveGlobalConfig(prices, order)
+	if not SimpleShopItemStore.isGlobalMode() then return false; end
+	local module = SimpleShopItemStore.configFile();
+	if not module or type(module.write) ~= "function" then return false; end
+	local ok, result = pcall(module.write,
+		prices or SimpleShopItemStore.prices or {},
+		order or SimpleShopItemStore.order or {});
+	if not ok then
+		log("write global config failed: " .. tostring(result));
+		return false;
+	end
+	return result == true;
+end
+
+-- **************************************************************************************
+-- 切换存储模式：先把当前这份价格表按旧模式落好，再按新模式重新加载
+--   全局 -> 存档：内容原样留在本存档（其它存档不再跟随）
+--   存档 -> 全局：用本存档这份覆盖全局文件（之后所有存档共用）
+-- @param mode "global" / "save"
+-- **************************************************************************************
+function SimpleShopItemStore.setMode(mode)
+	mode = string.lower(tostring(mode or ""));
+	if mode ~= SimpleShopItemStore.MODE_SAVE then mode = SimpleShopItemStore.MODE_GLOBAL; end
+
+	local previous = SimpleShopItemStore.getMode();
+	if mode == previous then return true; end
+
+	-- 旧模式是全局：先把当前内存里的表写回文件，避免丢掉刚改的定价
+	if previous == SimpleShopItemStore.MODE_GLOBAL then
+		SimpleShopItemStore.saveGlobalConfig(SimpleShopItemStore.prices, SimpleShopItemStore.order);
+	end
+
+	SimpleShopItemStore.mode = mode;
+	-- 新模式是全局：以当前这份价格表为基准播种全局文件
+	if mode == SimpleShopItemStore.MODE_GLOBAL then
+		SimpleShopItemStore.saveGlobalConfig(SimpleShopItemStore.prices, SimpleShopItemStore.order);
+	end
+	-- 本机默认：沙箱把本世界固定住时，这里只影响之后新建/没设置沙箱的世界
+	SimpleShopItemStore.saveMode(mode);
+	-- 清缓存，让 getMode() 重新按 沙箱 > ini > 默认 解析
+	SimpleShopItemStore.mode = nil;
+	if SimpleShopItemStore.getSandboxScope() then
+		log("sandbox ConfigScope pins this world, machine default saved as " .. mode);
+	end
+	log("storage mode -> " .. tostring(SimpleShopItemStore.getMode()));
+	SimpleShopItemStore.reload();
+	return true;
+end
+
+-- 按当前模式重新加载价格表（切换模式、手工改了文件后调用）
+function SimpleShopItemStore.reload()
+	SimpleShopItemStore.isLoaded = false;
+	SimpleShopItemStore.initialize(false);
+	SimpleShopItemStore.notify();
 end
 
 -- **************************************************************************************
@@ -278,6 +432,17 @@ function SimpleShopItemStore.initialize(isNewGame)
 	-- 联机客户端：本地没有权威数据，向服务端请求
 	if isClient() then
 		SimpleShopItemStore.isLoaded = false;
+		-- 主机模式（非专用服务器）：这台机器上的全局配置文件本身就是权威数据，
+		-- 先按文件填一份，避免请求来回期间商店是空表；随后的服务端同步会覆盖成同一份内容
+		if not isServer() then
+			local global = SimpleShopItemStore.loadGlobalConfig();
+			if global then
+				SimpleShopItemStore.prices = global.prices;
+				SimpleShopItemStore.order = global.order or {};
+				SimpleShopItemStore.invalidateOrderCache();
+				SimpleShopItemStore.isLoaded = true;
+			end
+		end
 		ModData.request(SimpleShopItemStore.KEY);
 		if SimpleShopClientCommands and SimpleShopClientCommands.SendPricesRequest then
 			SimpleShopClientCommands.SendPricesRequest();
@@ -286,17 +451,35 @@ function SimpleShopItemStore.initialize(isNewGame)
 	end
 
 	local modData = SimpleShopItemStore.getModData();
-	if type(modData.prices) ~= "table" or not modData.initialized then
-		modData.prices = SimpleShopItemStore.getDefaultPrices();
+	local global = SimpleShopItemStore.loadGlobalConfig();
+
+	if global then
+		-- 全局配置文件存在：以文件为准（换存档/换角色沿用同一份价格表），并镜像回存档 ModData
+		modData.prices = global.prices;
+		modData.order = global.order or {};
 		modData.initialized = true;
-		log("initialized default price table");
+		SimpleShopItemStore.prices = modData.prices;
+		SimpleShopItemStore.order = modData.order;
+		local module = SimpleShopItemStore.configFile();
+		log("global price table loaded from " .. tostring(module and module.FILE or "config file")
+			.. " (" .. tostring(SimpleShopItemStore.getCount()) .. " items)");
+	else
+		if type(modData.prices) ~= "table" or not modData.initialized then
+			modData.prices = SimpleShopItemStore.getDefaultPrices();
+			modData.initialized = true;
+			log("initialized default price table");
+		end
+		-- 陈列顺序：老存档没有该字段时按空表处理（此时列表回退为按名称排列）
+		if type(modData.order) ~= "table" then
+			modData.order = {};
+		end
+		SimpleShopItemStore.prices = modData.prices;
+		SimpleShopItemStore.order = modData.order;
+		-- 第一次运行（没有全局配置文件）：把当前存档里的价格表固化到全局文件，之后的存档直接复用
+		if SimpleShopItemStore.saveGlobalConfig(modData.prices, modData.order) then
+			log("global price table created from this save");
+		end
 	end
-	-- 陈列顺序：老存档没有该字段时按空表处理（此时列表回退为按名称排列）
-	if type(modData.order) ~= "table" then
-		modData.order = {};
-	end
-	SimpleShopItemStore.prices = modData.prices;
-	SimpleShopItemStore.order = modData.order;
 	SimpleShopItemStore.invalidateOrderCache();
 	SimpleShopItemStore.isLoaded = true;
 	-- 老存档里可能有"来源模组已移除/官方已删除"的商品残留：加载后立刻清掉，不再读进列表也不再存回
@@ -387,6 +570,8 @@ function SimpleShopItemStore.applyChange(mutator)
 
 	SimpleShopItemStore.invalidateOrderCache();
 	SimpleShopItemStore.isLoaded = true;
+	-- 全局配置文件：写盘后对所有存档/角色生效（联机时写的是服务端机器上的那份）
+	SimpleShopItemStore.saveGlobalConfig(modData.prices, modData.order);
 	-- 同步给所有客户端（单人游戏下无副作用）
 	ModData.transmit(SimpleShopItemStore.KEY);
 	SimpleShopItemStore.notify();

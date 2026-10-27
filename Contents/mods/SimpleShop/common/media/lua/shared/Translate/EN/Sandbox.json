@@ -1,5 +1,9 @@
 {
     "Sandbox_SimpleShop": "SimpleShop",
     "Sandbox_SimpleShopAllowManageItems": "Allow item configuration",
-    "Sandbox_SimpleShopAllowManageItems_tooltip": "Allow players with management rights to change item prices and display order; when off, the button, the key bind and multiplayer price requests are all refused (off by default). Each player must also enable \"Show Manage Items button\" in Options -> Mods -> SimpleShop"
+    "Sandbox_SimpleShopAllowManageItems_tooltip": "Allow players with management rights to change item prices and display order; when off, the button, the key bind and multiplayer price requests are all refused (off by default). Each player must also enable \"Show Manage Items button\" in Options -> Mods -> SimpleShop",
+    "Sandbox_SimpleShopConfigScope": "Price table scope",
+    "Sandbox_SimpleShopConfigScope_tooltip": "Where the price table (items + display order) is stored.\nWhole game (default): stored in Zomboid/Lua/SimpleShopPrices.ini and shared by every save and character, so a new save starts with the same shop.\nThis save only: stored in the current save; another save falls back to the default list.\nSwitching keeps the current price table, nothing is lost.",
+    "Sandbox_SimpleShopConfigScopeValues_option1": "Whole game",
+    "Sandbox_SimpleShopConfigScopeValues_option2": "This save only"
 }

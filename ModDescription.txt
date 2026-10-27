@@ -7,7 +7,7 @@ SimpleShop 是一个简洁的购物 mod，参考 CoxisShop 简化而来，专注
 [list]
     [*] 商店界面 - 滚动列表显示物品，支持分类筛选、搜索与排序
     [*] 游戏内定价 - 管理员从全部物品脚本（含其他 mod）中挑选物品设价，无需改代码
-    [*] 商品顺序 - 定价窗口里"置顶/上移/下移/置底"自定义陈列顺序，随存档保存
+    [*] 商品顺序 - 定价窗口里"置顶/上移/下移/置底"自定义陈列顺序（默认整个游戏共用，也可切成仅本存档）
     [*] 货币系统 - 击杀僵尸获得金钱，死亡后保留全部金钱
     [*] 悬浮余额 - 画面右侧常驻的余额面板（左侧购物图标），点击直接开/关商店，按住可拖到任意位置
     [*] 打开方式 - 点击画面右侧的悬浮余额面板，或在 选项 → 模组 → 简易商店 里绑定快捷键 / 开启右键菜单
@@ -32,13 +32,13 @@ SimpleShop 是一个简洁的购物 mod，参考 CoxisShop 简化而来，专注
     [*] 排序：可切 商店顺序 / 名称 A→Z / 名称 Z→A / 价格 低→高 / 价格 高→低（按价格时未上架排最后）
     [*] 顺序：选中已上架商品用"置顶/上移/下移/置底"调整，改完立刻同步；"恢复默认"同时清空自定义顺序
     [*] 价格：0 ~ 999999 的整数，0 表示免费；可单个下架，也可一键恢复默认清单
-    [*] 存储：价格表与陈列顺序保存在世界级全局 ModData，随存档持久化，购买按该表扣款
+    [*] 存储：默认存到游戏目录的全局配置文件（所有存档/角色共用），可在沙箱选项「价格表范围」里切成「仅本存档」，购买按该表扣款
 [/list]
 
 [h2]配置选项[/h2]
 [list]
     [*] 初始金钱 100、击杀奖励 10（见 SimpleShopBasic.lua）
-    [*] 沙箱选项 - 允许配置商品（默认关闭；联机时为服务端权威校验）
+    [*] 沙箱选项 - 允许配置商品（默认关闭；联机时为服务端权威校验）、价格表范围（整个游戏生效/仅本存档，默认整个游戏生效）
     [*] 模组选项 - 悬浮余额面板（默认开启）、右键菜单（默认关闭）、显示「管理商品」按钮（默认关闭）、打开商店/管理商品快捷键（默认不绑定），改完立即生效
     [*] 默认商品清单 - SimpleShopItems.lua（仅首次建表或"恢复默认"时生效）
 [/list]
@@ -84,7 +84,7 @@ SimpleShopItemStore.removePrice(id)     -- 下架
 SimpleShopItemStore.resetToDefault()    -- 恢复默认清单
 SimpleShopItemStore.addListener(fn)     -- 价格变化监听（界面刷新用）
 [/code]
-价格校验为 0 ~ 999999 的整数，非法值返回 false / nil；修改自动写入全局 ModData，随存档保存。
+价格校验为 0 ~ 999999 的整数，非法值返回 false / nil；修改自动写入当前生效的价格表（默认 `Zomboid/Lua/SimpleShopPrices.ini`，切成仅本存档时写存档 ModData）。
 
 Workshop ID: 3619356125
 Mod ID: SimpleShop
@@ -98,7 +98,7 @@ SimpleShop is a lightweight shopping mod based on CoxisShop, focused on buying i
 [list]
     [*] Shop interface - Scrollable list with category filtering, search and sorting
     [*] In-game pricing - Admins pick any item script (including other mods' items) and set a price, no code needed
-    [*] Custom item order - Reorder items with "Top / Up / Down / Bottom" in the pricing window; saved with the world
+    [*] Custom item order - Reorder items with "Top / Up / Down / Bottom" in the pricing window (shared by the whole game by default, or per save)
     [*] Currency system - Earn money by killing zombies, keep it all after death
     [*] Floating balance - A small balance panel on the right side of the screen (shopping cart icon); click to open the shop, drag it anywhere
     [*] How to open - Click the floating balance panel, or bind a key / enable the right-click menu in Options -> Mods -> SimpleShop
@@ -123,13 +123,13 @@ SimpleShop is a lightweight shopping mod based on CoxisShop, focused on buying i
     [*] Sorting: Shop order / Name A->Z / Z->A / Price low->high / high->low (unlisted items sort last in price modes)
     [*] Reordering: select a listed item and use "Top / Up / Down / Bottom"; changes sync immediately; "Reset Default" also clears the custom order
     [*] Price: integer from 0 to 999999 (0 means free); delist single items or restore the default list
-    [*] Storage: prices and order live in a world-level global ModData entry, saved with the world; purchases are charged from it
+    [*] Storage: by default prices and order live in a global config file in the game folder (shared by every save/character); the sandbox option "Price table scope" can keep them in the current save only. Purchases are charged from the active table
 [/list]
 
 [h2]Configuration Options[/h2]
 [list]
     [*] Initial money 100 and kill reward 10 (see SimpleShopBasic.lua)
-    [*] Sandbox option - Allow item configuration (off by default; server-authoritative in multiplayer)
+    [*] Sandbox options - Allow item configuration (off by default; server-authoritative in multiplayer) and Price table scope (whole game / this save only, whole game by default)
     [*] Mod options - Floating balance panel (on), right-click menu (off), Show "Manage Items" button (off), key binds for opening the shop / managing items (unbound); applied immediately
     [*] Default item list - SimpleShopItems.lua (used only when the table is first created or "Reset Default" is clicked)
 [/list]
@@ -175,7 +175,7 @@ SimpleShopItemStore.removePrice(id)     -- delist
 SimpleShopItemStore.resetToDefault()    -- restore the default list
 SimpleShopItemStore.addListener(fn)     -- price change listener (UI refresh)
 [/code]
-Prices are validated as integers from 0 to 999999; invalid values return false / nil. Changes are written into the world-level global ModData and saved with the world.
+Prices are validated as integers from 0 to 999999; invalid values return false / nil. Changes are written into the active price table (by default `Zomboid/Lua/SimpleShopPrices.ini`, or the save's ModData when "keep prices in this save only" is on).
 
 Workshop ID: 3619356125
 Mod ID: SimpleShop

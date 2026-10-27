@@ -355,6 +355,9 @@ SimpleShop.canShowManageButton = function(playerNum)
 	return SimpleShop.canAccessAdminPanel(playerNum);
 end
 
+-- 说明：价格表范围（整个游戏 / 仅本存档）配在沙箱选项「简易商店 → 价格表范围」里，
+-- 由 SimpleShopItemStore.getMode() 统一解析，这里不再提供本机开关，避免两处设置互相打架。
+
 -- 本机"显示右键菜单"开关（默认关闭）：开启后世界/物品栏右键里才有"打开商店"
 SimpleShop.showContextMenuOverride = nil;
 SimpleShop.getShowContextMenuOption = function()

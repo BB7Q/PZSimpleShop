@@ -51,7 +51,7 @@
     "UI_SimpleShop_SortPriceDesc": "Price high→low",
     "UI_SimpleShop_ItemCount": "Items",
     "UI_SimpleShop_ModOptions": "SimpleShop",
-    "UI_SimpleShop_OptHint": "All toggles below only affect you. The \"Manage Items\" button additionally requires the sandbox option \"SimpleShop -> Allow item configuration\" in the current world before it appears in the shop window.",
+    "UI_SimpleShop_OptHint": "All toggles below only affect you. The \"Manage Items\" button additionally requires the sandbox option \"SimpleShop -> Allow item configuration\" in the current world before it appears in the shop window. The price table scope (whole game / this save only) is set in the sandbox option \"SimpleShop -> Price table scope\".",
     "UI_SimpleShop_OptShowManageButton": "Show Manage Items button",
     "UI_SimpleShop_OptShowManageButton_tt": "Show the Manage Items button at the bottom of the shop window; applies immediately after saving (off by default). Requires the sandbox option \"Allow item configuration\", otherwise the button stays hidden.",
     "UI_SimpleShop_OptShowHud": "Show floating balance panel",

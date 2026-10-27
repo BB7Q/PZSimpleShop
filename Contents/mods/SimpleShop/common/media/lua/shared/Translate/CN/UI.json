@@ -51,7 +51,7 @@
     "UI_SimpleShop_SortPriceDesc": "价格 高→低",
     "UI_SimpleShop_ItemCount": "商品数",
     "UI_SimpleShop_ModOptions": "简易商店",
-    "UI_SimpleShop_OptHint": "以下开关都只对你自己生效。「显示管理按钮」还需要当前世界的沙箱选项开启「简易商店 → 允许配置商品」，按钮才会出现在商店窗口里。",
+    "UI_SimpleShop_OptHint": "以下开关都只对你自己生效。「显示管理按钮」还需要当前世界的沙箱选项开启「简易商店 → 允许配置商品」，按钮才会出现在商店窗口里。价格表范围（整个游戏 / 仅本存档）在沙箱选项「简易商店 → 价格表范围」里设置。",
     "UI_SimpleShop_OptShowManageButton": "显示「管理商品」按钮",
     "UI_SimpleShop_OptShowManageButton_tt": "在商店窗口底部显示「管理商品」按钮，改动保存后立即生效（默认关闭）。需要沙箱选项开启「允许配置商品」，否则按钮不会出现。",
     "UI_SimpleShop_OptShowHud": "显示悬浮余额面板",
