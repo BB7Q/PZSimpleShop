@@ -41,7 +41,86 @@ function ISSimpleShop:render()
 	ISCollapsableWindow.render(self);
 end
 
+-- **************************************************************************************
+-- 底部操作按钮：文案长度随语言/字号变化（英文 "Manage Items" 比"管理商品"长得多），
+-- 先量文案算宽度、必要时加宽窗口，再按最终宽度摆按钮，避免整排按钮被窗口边缘裁掉
+-- **************************************************************************************
+function ISSimpleShop:buildActionButtonDefs()
+	-- 管理员（且本机模组选项勾了"显示管理按钮"、世界沙箱开了"允许配置商品"）额外显示"管理商品"按钮
+	local canManage = SimpleShop.canShowManageButton(self.playerId);
+	local defs = {
+		{ text = getText("UI_SimpleShop_Buy") .. " x1", internal = "buy1", onclick = function() self:onBuyMouseDown(1) end },
+		{ text = getText("UI_SimpleShop_Buy") .. " x5", internal = "buy5", onclick = function() self:onBuyMouseDown(5) end },
+		{ text = getText("UI_SimpleShop_Buy") .. " x10", internal = "buy10", onclick = function() self:onBuyMouseDown(10) end },
+	};
+	if canManage then
+		defs[#defs + 1] = { text = getText("UI_SimpleShop_Manage"), internal = "admin", onclick = function() SimpleShop.showAdminScreen(self.playerId) end };
+	end
+	defs[#defs + 1] = { text = getText("UI_SimpleShop_Close"), internal = "close", onclick = self.onCloseMouseDown };
+	return defs, canManage and true or false;
+end
+
+-- 按最长文案统一按钮宽度；整排放不进窗口时先加宽窗口，仍不行再依次收间距、收内边距
+function ISSimpleShop:layoutActionButtons(margin)
+	local defs, canManage = self:buildActionButtonDefs();
+	local count = #defs;
+	local height = 30;
+	local gap = 10;
+	local sidePadding = 22;   -- 文字左右各留 11px
+	local minWidth = 80;
+
+	local maxTextWidth = 0;
+	for _, def in ipairs(defs) do
+		local textWidth = getTextManager():MeasureStringX(UIFont.Small, def.text);
+		if textWidth > maxTextWidth then
+			maxTextWidth = textWidth;
+		end
+	end
+	local width = math.max(minWidth, math.ceil(maxTextWidth) + sidePadding);
+
+	local function rowWidth(w, g)
+		return w * count + g * (count - 1);
+	end
+
+	local screenWidth = getPlayerScreenWidth(self.playerId) or getCore():getScreenWidth();
+	local available = self.width - margin * 2;
+
+	-- 1) 优先加宽窗口（上限为屏幕宽度 - 20），保证每个按钮都能完整显示文字
+	if rowWidth(width, gap) > available then
+		local needed = math.ceil(rowWidth(width, gap)) + margin * 2;
+		local maxWindowWidth = math.max(self.width, math.floor(screenWidth - 20));
+		local targetWidth = math.min(needed, maxWindowWidth);
+		if targetWidth > self.width then
+			self:setWidth(targetWidth);
+			self:setX(math.max(0, math.floor((screenWidth - targetWidth) / 2)));
+			available = self.width - margin * 2;
+		end
+	end
+
+	-- 2) 窗口已到屏幕上限还放不下：先收间距，再收按钮内边距
+	while gap > 4 and rowWidth(width, gap) > available do
+		gap = gap - 2;
+	end
+	while width > minWidth and rowWidth(width, gap) > available do
+		width = width - 2;
+	end
+	-- 3) 极端窄屏兜底：按可用宽度均分，宁可文字略挤也不越出窗口
+	if rowWidth(width, gap) > available then
+		width = math.max(40, math.floor((available - gap * (count - 1)) / count));
+	end
+
+	local startX = math.max(margin, math.floor((self.width - rowWidth(width, gap)) / 2));
+	return { defs = defs, canManage = canManage, width = width, height = height, gap = gap, startX = startX };
+end
+
 function ISSimpleShop:create()
+	-- 使用统一的边距变量（render 中对齐也要用）
+	local margin = 20;
+	self.margin = margin;
+
+	-- 先算底部按钮布局（可能顺带加宽窗口），面板宽度必须用加宽后的值
+	local actionLayout = self:layoutActionButtons(margin);
+
 	-- 创建内部面板以放置内容，增加标题栏高度
 	local titleHeight = self:titleBarHeight();
 	local panelHeight = self.height - titleHeight;
@@ -51,10 +130,6 @@ function ISSimpleShop:create()
 	self:addChild(self.panel);
 
 	local y = 10;
-
-	-- 使用统一的边距变量（render 中对齐也要用）
-	local margin = 20;
-	self.margin = margin;
 
 	-- 第一行：玩家信息和金钱（左侧）
 	self.playerLabel = ISLabel:new(margin, y, 20, "", 1, 1, 1, 1, UIFont.Medium);
@@ -124,45 +199,20 @@ function ISSimpleShop:create()
 	self.sortCombo.tooltip = getText("UI_SimpleShop_SortTooltip");
 	self.panel:addChild(self.sortCombo);
 
-	-- 在底部添加按钮区域：等宽、等间距、整体居中
-	local buttonHeight = 30;
-	local buttonGap = 10;
-	-- 管理员（且本机模组选项勾了"显示管理按钮"、世界沙箱开了"允许配置商品"）额外显示"管理商品"按钮
-	local canManage = SimpleShop.canShowManageButton(self.playerId);
-	local buttonDefs = {
-		{ text = getText("UI_SimpleShop_Buy") .. " x1", internal = "buy1", onclick = function() self:onBuyMouseDown(1) end },
-		{ text = getText("UI_SimpleShop_Buy") .. " x5", internal = "buy5", onclick = function() self:onBuyMouseDown(5) end },
-		{ text = getText("UI_SimpleShop_Buy") .. " x10", internal = "buy10", onclick = function() self:onBuyMouseDown(10) end },
-	};
-	if canManage then
-		buttonDefs[#buttonDefs + 1] = { text = getText("UI_SimpleShop_Manage"), internal = "admin", onclick = function() SimpleShop.showAdminScreen(self.playerId) end };
-	end
-	buttonDefs[#buttonDefs + 1] = { text = getText("UI_SimpleShop_Close"), internal = "close", onclick = self.onCloseMouseDown };
-
-	-- 按最长的按钮文字统一宽度，保证每个按钮等宽、间距完全一致
-	local maxTextWidth = 0;
-	for _, def in ipairs(buttonDefs) do
-		local textWidth = getTextManager():MeasureStringX(UIFont.Small, def.text);
-		if textWidth > maxTextWidth then
-			maxTextWidth = textWidth;
-		end
-	end
-	local buttonWidth = math.max(80, maxTextWidth + 22);
-	local totalButtonWidth = buttonWidth * #buttonDefs + buttonGap * (#buttonDefs - 1);
-	local buttonStartX = math.floor((self.width - totalButtonWidth) / 2);
-	-- 底部留白与左右边距一致（panel 从标题栏下方开始，坐标相对 panel）
+	-- 底部按钮区域：等宽、等间距、整体居中（宽度/间距已由 layoutActionButtons 按文案算好）
+	local buttonHeight = actionLayout.height;
 	local buttonY = panelHeight - margin - buttonHeight;
 
 	local actionButtons = {};
-	for index, def in ipairs(buttonDefs) do
-		local x = buttonStartX + (buttonWidth + buttonGap) * (index - 1);
-		actionButtons[index] = self:createActionButton(x, buttonY, buttonWidth, buttonHeight, def.text, def.internal, def.onclick);
+	for index, def in ipairs(actionLayout.defs) do
+		local x = actionLayout.startX + (actionLayout.width + actionLayout.gap) * (index - 1);
+		actionButtons[index] = self:createActionButton(x, buttonY, actionLayout.width, buttonHeight, def.text, def.internal, def.onclick);
 	end
 
 	self.buyButton1 = actionButtons[1];
 	self.buyButton5 = actionButtons[2];
 	self.buyButton10 = actionButtons[3];
-	if canManage then
+	if actionLayout.canManage then
 		self.adminButton = actionButtons[4];
 		self.closeButton = actionButtons[5];
 	else
@@ -170,7 +220,7 @@ function ISSimpleShop:create()
 		self.closeButton = actionButtons[4];
 	end
 	-- 记下本次布局用的判定结果：沙箱开关变化后由 showUpgradeScreen 比对并重建窗口
-	self.manageAllowed = canManage and true or false;
+	self.manageAllowed = actionLayout.canManage and true or false;
 
 	-- 列表区域：铺满左右边距，与上方筛选行、下方按钮各留一段间隔，避免贴在一起显得拥挤
 	local listGap = 14;
