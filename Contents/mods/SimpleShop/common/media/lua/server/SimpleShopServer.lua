@@ -33,94 +33,110 @@ SimpleShopServer.InitPlayerMoney = function(playerObj)
 end
 
 -- **************************************************************************************
--- 当玩家击中僵尸时触发（只在服务端执行）
--- @param owner 攻击者（玩家）
--- @param weapon 武器
--- @param hitObject 被击中的对象（僵尸）
--- @param damage 伤害
--- @param hitCount 命中次数
+-- 僵尸击杀奖励（服务端结算）
+--   口径：直接看玩家自己的击杀计数 getZombieKills() 的增量，游戏统计到的每一次击杀都算。
+--   早期实现挂在武器事件上，只能覆盖近战，远距离击杀不加钱：
+--     · OnWeaponHitXp           只在近战碰撞（CombatManager.attackCollisionCheck）与网络 WeaponHit 里触发
+--     · OnPlayerAttackFinished  只在近战挥击状态结束时（SwipeStatePlayer.exit）触发
+--   枪械、投掷等远程击杀不经过这两个事件，因此拿不到奖励；击杀计数是引擎维护的，
+--   枪械/近战/车辆等所有来源都会累加，按增量发钱即可覆盖全部击杀方式。
 -- **************************************************************************************
-SimpleShopServer.OnWeaponHitXp = function(owner, weapon, hitObject, damage, hitCount)
-    print("[SimpleShop] OnWeaponHitXp triggered - hitObject: " .. tostring(hitObject))
+SimpleShopServer.KILL_CHECK_TICKS = 15;   -- 每 15 tick 检查一次（约 0.5 秒），避免每帧扫玩家
+SimpleShopServer.killCheckTicks = 0;
 
-    -- 安全检查 owner
-    if not owner then
-        print("[SimpleShop] owner is nil")
+-- **************************************************************************************
+-- 读取玩家累计击杀数（异常/取不到值时返回 0，不影响其它逻辑）
+-- **************************************************************************************
+SimpleShopServer.GetZombieKills = function(playerObj)
+    if not playerObj then return 0 end
+    local ok, kills = pcall(function() return playerObj:getZombieKills() end)
+    if not ok or not kills then return 0 end
+    return math.floor(kills)
+end
+
+-- **************************************************************************************
+-- 是否为旧版客户端脚本（旧版客户端自己在 OnPlayerAttackFinished 里发钱）
+--   客户端脚本只在游戏启动时加载，服务端脚本在进入世界时加载：
+--   改了脚本但只重开存档、没完整重启游戏时，就会出现"新服务端 + 旧客户端"混跑，
+--   一次击杀被服务端和客户端各发一次，表现为双倍钱。
+--   单人/主机模式下客户端与服务端共用一份 Lua 状态，可以在这里直接看到客户端全局；
+--   联机专用服务器上没有客户端模块（SimpleShop 为 nil），不受影响。
+-- **************************************************************************************
+SimpleShopServer.HasLegacyClientReward = function()
+    return type(SimpleShop) == "table" and SimpleShop.onPlayerAttackFinished ~= nil
+end
+
+-- **************************************************************************************
+-- 检查所有在线玩家的击杀增量并结算奖励
+--   单人/主机模式由同一份服务端逻辑处理；联机时结算后通过 updateMoney 通知客户端
+-- **************************************************************************************
+SimpleShopServer.CheckKillRewards = function()
+    -- 旧版客户端会自己发钱，服务端让位，避免同一只僵尸发两次奖励
+    if SimpleShopServer.HasLegacyClientReward() then
+        if not SimpleShopServer.warnedLegacyClient then
+            SimpleShopServer.warnedLegacyClient = true
+            print("[SimpleShop] WARNING: detected legacy client kill-reward code, server reward skipped to avoid double pay. Please fully restart the game to load the new scripts.")
+        end
         return
     end
 
-    -- 安全检查 hitObject
-    if not hitObject then
-        print("[SimpleShop] hitObject is nil")
-        return
+    local rewardPerKill = math.floor(tonumber(SimpleShopBasic and SimpleShopBasic.zombieKillAmount) or 10)
+
+    -- 单个玩家结算：只处理"比上次结算时多出来的击杀数"，重复调用不会有副作用
+    local function checkPlayer(playerObj)
+        if not playerObj or not playerObj:isAlive() then return end
+
+        local modData = playerObj:getModData()
+        local kills = SimpleShopServer.GetZombieKills(playerObj)
+
+        -- 首次记录该角色时只建立基线：之前（读档/加入服务器前）的击杀不补发
+        if modData.playerKillsPaid == nil then
+            modData.playerKillsPaid = kills
+        end
+        if modData.playerMoney == nil then
+            SimpleShopServer.InitPlayerMoney(playerObj)
+        end
+
+        local paid = modData.playerKillsPaid
+        if kills > paid then
+            modData.playerKillsPaid = kills
+            local newKills = kills - paid
+            local reward = newKills * rewardPerKill
+            if reward > 0 then
+                local oldMoney = modData.playerMoney or 0
+                modData.playerMoney = oldMoney + reward
+
+                print("[SimpleShop] Player " .. tostring(playerObj:getUsername()) .. " killed " .. tostring(newKills)
+                    .. " zombie(s), rewarded " .. tostring(reward) .. " money. Old: " .. tostring(oldMoney)
+                    .. " -> New: " .. tostring(modData.playerMoney))
+
+                -- 通知客户端金钱更新（带击杀提示）
+                sendServerCommand(playerObj, "SimpleShop", "updateMoney", {
+                    money = modData.playerMoney,
+                    killReward = true,
+                    amount = reward,
+                    kills = newKills
+                })
+            end
+        elseif kills < paid then
+            -- 击杀数被重置（读档回退/新角色），重新对齐基线，避免把差值当成一批新击杀
+            modData.playerKillsPaid = kills
+        end
     end
 
-    -- 检查是否击中了僵尸
-    local isZombie = instanceof(hitObject, "IsoZombie")
-    print("[SimpleShop] isZombie: " .. tostring(isZombie))
-    if not isZombie then return end
-
-    -- 检查僵尸是否已经死亡
-    local isDead
-    local success, result = pcall(function() return hitObject:isDead() end)
-    if success then
-        isDead = result
-    else
-        print("[SimpleShop] Error calling isDead(): " .. tostring(result))
-        return
+    -- 联机（含主机模式）：在线玩家列表是权威来源
+    local players = getOnlinePlayers and getOnlinePlayers()
+    if players then
+        for i = 0, players:size() - 1 do
+            checkPlayer(players:get(i))
+        end
     end
 
-    print("[SimpleShop] isDead: " .. tostring(isDead))
-    if not isDead then return end
-
-    -- 获取击杀者（僵尸的攻击者）
-    local killer
-    success, result = pcall(function() return hitObject:getAttackedBy() end)
-    if success then
-        killer = result
-    else
-        print("[SimpleShop] Error calling getAttackedBy(): " .. tostring(result))
-        return
+    -- 单人模式/分屏：在线列表可能为空，用本地玩家列表兜底（重复结算同一玩家是无害的）
+    local numPlayers = getNumActivePlayers and getNumActivePlayers() or 0
+    for i = 0, numPlayers - 1 do
+        checkPlayer(getSpecificPlayer(i))
     end
-
-    print("[SimpleShop] getAttackedBy() returned: " .. tostring(killer))
-
-    -- 如果击杀者是 nil，直接使用 owner（因为 OnWeaponHitXp 的 owner 就是攻击者）
-    if not killer then
-        print("[SimpleShop] killer is nil, using owner as killer")
-        killer = owner
-    end
-
-    -- 检查击杀者是否是当前玩家
-    local isKillerOwner = killer == owner
-    print("[SimpleShop] killer == owner: " .. tostring(isKillerOwner))
-    if not isKillerOwner then
-        print("[SimpleShop] killer is not the same as owner, skipping")
-        return
-    end
-
-    local playerObj = owner
-    print("[SimpleShop] All checks passed, will reward money")
-
-    -- 确保金钱已初始化
-    SimpleShopServer.InitPlayerMoney(playerObj)
-
-    -- 计算奖励
-    local rewardAmount = SimpleShopBasic.zombieKillAmount or 10
-
-    -- 增加金钱
-    local modData = playerObj:getModData()
-    local oldMoney = modData.playerMoney or 0
-    modData.playerMoney = oldMoney + rewardAmount
-
-    print("[SimpleShop] Player " .. tostring(playerObj:getUsername()) .. " killed a zombie, rewarded " .. rewardAmount .. " money. Old: " .. oldMoney .. " -> New: " .. modData.playerMoney)
-
-    -- 通知客户端金钱更新（带击杀提示）
-    sendServerCommand(playerObj, "SimpleShop", "updateMoney", {
-        money = modData.playerMoney,
-        killReward = true,
-        amount = rewardAmount
-    })
 end
 
 -- **************************************************************************************
@@ -368,7 +384,7 @@ local function onClientCommand(module, command, playerObj, args)
 end
 
 -- 检查事件是否可用
-print("[SimpleShop] Events.OnWeaponHitXp available: " .. tostring(Events.OnWeaponHitXp ~= nil))
+print("[SimpleShop] Events.OnTick available: " .. tostring(Events.OnTick ~= nil))
 print("[SimpleShop] Events.OnClientCommand available: " .. tostring(Events.OnClientCommand ~= nil))
 print("[SimpleShop] Events.OnConnected available: " .. tostring(Events.OnConnected ~= nil))
 print("[SimpleShop] Events.OnServerStarted available: " .. tostring(Events.OnServerStarted ~= nil))
@@ -384,11 +400,17 @@ if Events.OnConnected then
     print("[SimpleShop] Registered OnConnected")
 end
 
-if Events.OnWeaponHitXp then
-    Events.OnWeaponHitXp.Add(SimpleShopServer.OnWeaponHitXp)
-    print("[SimpleShop] Registered OnWeaponHitXp")
+-- 击杀奖励：按击杀计数增量结算（每帧触发，内部按 tick 节流）
+if Events.OnTick then
+    Events.OnTick.Add(function()
+        SimpleShopServer.killCheckTicks = SimpleShopServer.killCheckTicks + 1
+        if SimpleShopServer.killCheckTicks < SimpleShopServer.KILL_CHECK_TICKS then return end
+        SimpleShopServer.killCheckTicks = 0
+        SimpleShopServer.CheckKillRewards()
+    end)
+    print("[SimpleShop] Registered OnTick (kill reward check)")
 else
-    print("[SimpleShop] ERROR: OnWeaponHitXp event not available!")
+    print("[SimpleShop] ERROR: OnTick event not available, kill rewards will not work!")
 end
 
 -- 初始化已在线的玩家（服务器启动时）

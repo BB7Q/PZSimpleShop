@@ -13,8 +13,6 @@ SimpleShop.settings = {};
 SimpleShop.playerMoneyTemp = {};
 -- 玩家临时死亡次数数组
 SimpleShop.playerDeathCountTemp = {};
--- 玩家击杀僵尸数数组
-SimpleShop.zombieKills = {};
 -- 悬浮余额面板对象（客户端 UI，显示当前金钱，点击打开商店）
 SimpleShop.hud = nil;
 
@@ -43,9 +41,6 @@ SimpleShop.InitPlayer = function()
 		-- 刚创建角色的首次初始化
 		SimpleShop.modData[playerIndex].playerMoney = SimpleShop.modData[playerIndex].playerMoney or SimpleShop.settings["BASIC"]["initialMoney"];
 	end
-
-	-- 从modData中读取玩家僵尸击杀数
-	SimpleShop.zombieKills[playerIndex] = player:getZombieKills();
 end
 
 -- **************************************************************************************
@@ -546,27 +541,11 @@ SimpleShop.doInventoryContextMenu = function(playerNum, context, items)
 end
 
 -- **************************************************************************************
--- 当玩家攻击结束时触发，判断玩家是否有击杀僵尸，有就加钱
+-- 击杀奖励
+--   统一由服务端（SimpleShopServer.CheckKillRewards）按玩家的击杀计数增量结算：
+--   武器事件只能覆盖近战（OnWeaponHitXp / OnPlayerAttackFinished 都不经过枪械），
+--   远距离击杀会漏发，所以客户端不再自己发钱，只负责显示服务端下发的余额。
 -- **************************************************************************************
-SimpleShop.onPlayerAttackFinished = function(player,handWeapon)
-	-- 联机模式下，击杀奖励由服务端处理
-	if isClient() then
-		-- 联机模式：服务端会处理击杀奖励和金钱增加
-		return
-	end
-	
-	-- 单人模式或主机模式：本地处理
-	local playerIndex = SimpleShop.getCurrentPlayerIndexNum();
-	local playerNewKills = player:getZombieKills();
-	local newCount = playerNewKills - SimpleShop.zombieKills[playerIndex];
-	if playerNewKills > SimpleShop.zombieKills[playerIndex] then
-		-- 说明该玩家有新的僵尸击杀，所以要给他加钱，使用新的API函数
-		local rewardAmount = math.floor(SimpleShop.settings["BASIC"]["zombieKillAmount"] * newCount);
-		SimpleShop.AddPlayerMoney(rewardAmount, playerIndex);
-		-- 更新击杀数
-		SimpleShop.zombieKills[playerIndex] = playerNewKills;
-	end
-end
 
 -- **************************************************************************************
 -- 加载本地配置
@@ -597,8 +576,6 @@ SimpleShop.init = function()
 	-- 注册上下文菜单事件
 	Events.OnFillInventoryObjectContextMenu.Add(SimpleShop.doInventoryContextMenu);
 	Events.OnFillWorldObjectContextMenu.Add(SimpleShop.doWorldContextMenu);
-	-- 注册僵尸击杀事件
-	Events.OnPlayerAttackFinished.Add(SimpleShop.onPlayerAttackFinished);
 	-- 兜底注册快捷键配置（Mod Options 可能晚于本文件加载）
 	SimpleShop.registerModOptions();
 
