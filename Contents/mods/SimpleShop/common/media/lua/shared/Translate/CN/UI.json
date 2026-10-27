@@ -61,5 +61,5 @@
     "UI_SimpleShop_OptOpenKey": "打开商店的快捷键",
     "UI_SimpleShop_OptOpenKey_tt": "按一下直接打开商店窗口（默认不绑定；点击按钮后按想要的键）",
     "UI_SimpleShop_OptManageKey": "管理商品的快捷键",
-    "UI_SimpleShop_OptManageKey_tt": "按一下直接打开商品定价窗口（默认不绑定；需要沙箱选项里开启「允许配置商品」）"
+    "UI_SimpleShop_OptManageKey_tt": "按一下打开商品定价窗口，再按一下关闭（默认不绑定；需要沙箱选项里开启「允许配置商品」）"
 }

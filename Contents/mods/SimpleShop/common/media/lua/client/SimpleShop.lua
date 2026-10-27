@@ -425,7 +425,20 @@ SimpleShop.openShopByKey = function()
 	showUpgradeScreen(playerNum);
 end
 
--- 快捷键入口：商品定价（内部会校验管理员权限）
+-- 商品定价窗口已打开时先收起（返回 true），让快捷键像开关一样工作
+SimpleShop.closeAdminScreenIfVisible = function(playerNum)
+	local screen = SimpleShop.adminScreen and SimpleShop.adminScreen[playerNum];
+	if not screen then return false end
+	if screen.getIsVisible and not screen:getIsVisible() then return false end
+	if screen.close then
+		screen:close();
+	else
+		screen:setVisible(false);
+	end
+	return true;
+end
+
+-- 快捷键入口：商品定价（已打开则关闭，未打开则打开；打开时内部会校验管理员权限）
 SimpleShop.openAdminByKey = function()
 	if not getPlayer() then return end
 
@@ -434,6 +447,7 @@ SimpleShop.openAdminByKey = function()
 	local player = getSpecificPlayer(playerNum);
 	if not player or not player:isAlive() then return end
 
+	if SimpleShop.closeAdminScreenIfVisible(playerNum) then return end
 	SimpleShop.showAdminScreen(playerNum);
 end
 

@@ -61,5 +61,5 @@
     "UI_SimpleShop_OptOpenKey": "Key to open the shop",
     "UI_SimpleShop_OptOpenKey_tt": "Press this key to open the shop window directly (unbound by default; click the button and press the key you want)",
     "UI_SimpleShop_OptManageKey": "Key to manage items",
-    "UI_SimpleShop_OptManageKey_tt": "Press this key to open the item pricing window directly (unbound by default; requires the sandbox option \"Allow item configuration\")"
+    "UI_SimpleShop_OptManageKey_tt": "Press this key to open the item pricing window, press it again to close it (unbound by default; requires the sandbox option \"Allow item configuration\")"
 }
