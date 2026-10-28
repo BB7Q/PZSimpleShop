@@ -46,35 +46,7 @@ description=Starting money for new characters, kill reward, allow item configura
 description=SimpleShopBasic.lua keeps the same fields only as a fallback (used when the sandbox option is missing), so tune the sandbox options instead.
 description=
 description=[b]Item Price Configuration (SimpleShopItems.lua)[/b]
-description=[code]
-description=SimpleShopItems = {
-description=    -- Basic Survival Supplies
-description=    ["Base.Bread"] = 75,               -- Bread
-description=    ["Base.Apple"] = 25,               -- Apple
-description=    ["Base.Milk"] = 60,                -- Milk
-description=    -- Medical Supplies
-description=    ["Base.Bandage"] = 150,            -- Bandage
-description=    ["Base.PillsBeta"] = 200,          -- Pills
-description=    ["Base.Disinfectant"] = 180,       -- Disinfectant
-description=    -- Tools
-description=    ["Base.Hammer"] = 300,             -- Hammer
-description=    ["Base.Axe"] = 500,                -- Axe
-description=    ["Base.Saw"] = 400,                -- Saw
-description=    ["Base.Screwdriver"] = 200,        -- Screwdriver
-description=    -- Weapons
-description=    ["Base.BaseballBat"] = 400,        -- Baseball Bat
-description=    -- Building Materials
-description=    ["Base.Nails"] = 50,               -- Nails
-description=    -- Ammunition
-description=    ["Base.Bullets9mmBox"] = 100,      -- 9mm Bullet Box
-description=    ["Base.Bullets38Box"] = 175,       -- .38 Bullet Box
-description=    ["Base.Bullets44Box"] = 190,       -- .44 Bullet Box
-description=    ["Base.308Box"] = 300,             -- .308 Box
-description=    ["Base.ShotgunShellsBox"] = 450,   -- Shotgun Shells Box
-description=    ["Base.Bullets45Box"] = 500,       -- .45 Bullet Box
-description=    ["Base.556Box"] = 600,             -- 5.56 Box
-description=}
-description=[/code]
+description=The full default list lives in SimpleShop/common/media/lua/shared/SimpleShopItems.lua. Prices changed in game are stored in the active price table and take priority; the file only seeds the first load or "Reset Default".
 description=
 description=[b]Adding Custom Items[/b]
 description=The shop supports adding items from other mods, and even if items don't exist, it's not a problem - the mod will automatically detect and only display existing items. To add new items to the shop, simply add a new line in SimpleShopItems.lua:
