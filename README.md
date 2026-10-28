@@ -16,7 +16,7 @@ SimpleShop 是一个简单的购物mod，为玩家提供了商店界面用于购
 - 🖱️ **右键菜单** - 在世界界面或物品栏中右键点击，选择"打开商店"（默认关闭，可在模组选项里开启）
 - ⌨️ **可配置快捷键** - 打开商店与商品管理都支持自定义键位（默认不绑定，在 选项 → 模组 → 简易商店 中配置）
 - 🌍 **多语言支持** - 内置中英文界面
-- ⚙️ **可配置** - 支持自定义初始金钱和物品价格
+- ⚙️ **可配置** - 初始金钱与击杀奖励在沙箱选项里调（默认 0 / 10），物品价格游戏内定价
 - 🏷️ **游戏内定价** - 管理员可在游戏内从全部物品脚本（含其他模组物品）中选择物品并设定售价，价格持久化（默认全局：新开档不用重新定价；也可切成仅本存档）
 
 ## 安装方法
@@ -96,27 +96,26 @@ SimpleShop 是一个简单的购物mod，为玩家提供了商店界面用于购
 
 | 选项 | 默认 | 说明 |
 | --- | --- | --- |
+| `InitialMoney` | 0 | 新角色初始金钱（0 ~ 1000000 的整数）。只影响还没有金钱记录的角色，已有角色/老存档余额不变 |
+| `KillReward` | 10 | 每击杀一只僵尸的奖励（0 ~ 1000000 的整数），0 表示关闭击杀奖励；按击杀计数增量结算，近战/枪械/车辆都算 |
 | `AllowManageItems` | 关闭 | 是否允许配置商品（定价 / 陈列顺序）。关闭时按钮、快捷键、联机改价请求全部拒绝 |
 | `ConfigScope` | 整个游戏生效 | 价格表范围：整个游戏生效 / 仅本存档。**优先级最高**，决定价格表存游戏目录还是存当前存档 |
 
-- **单人**：新建世界时在「沙箱选项 → 简易商店」页里设置；`ConfigScope` 没设置的老存档按「整个游戏生效」处理
-- **联机**：服务端在 `Server/<存档名>_SandboxVars.lua` 或管理面板的「沙箱选项」里修改，重启/重载后生效，客户端自动同步；服务端也会据此拒绝改价请求
+- **单人**：新建世界时在「沙箱选项 → 简易商店」页里设置；老存档缺这两个金额选项时按默认值（0 / 10）处理
+- **联机**：服务端在 `Server/<存档名>_SandboxVars.lua` 或管理面板的「沙箱选项」里修改，重启/重载后生效，客户端自动同步；金额与击杀奖励一律由服务端结算
 - `AllowManageItems` 关闭时玩家只看得见商店、买不了也改不了，适合纯消费型服务器
 
 ### 获得金钱
-- 击杀僵尸：每杀死一个僵尸获得金钱奖励
-- 初始金钱：新角色开始时有100初始资金
+- 击杀僵尸：每杀死一个僵尸获得沙箱选项 `KillReward` 的奖励（默认 10）
+- 初始金钱：新角色按沙箱选项 `InitialMoney` 发放（默认 0，即白手起家）；死亡不丢钱
 
 ## 配置选项
 
-模组支持以下配置（位于 `common/media/lua/shared/`）：
+**初始金钱与击杀奖励**：属于世界级规则，在 **沙箱选项 → 简易商店** 里配置（`InitialMoney` 默认 0、`KillReward` 默认 10），单人改存档、联机改服务端沙箱，重载世界后生效。
+
+**默认物品清单**：`common/media/lua/shared/SimpleShopItems.lua`：
 
 ```lua
-SimpleShopBasic = {
-    ["initialMoney"] = 100, -- 初始金钱
-    ["zombieKillAmount"] = 10, -- 每击杀一个僵尸获得的金钱
-}
-
 SimpleShopItems = {
     -- 基础生存物资
     ["Base.Bread"] = 75,               -- 面包
@@ -148,6 +147,8 @@ SimpleShopItems = {
 
 > 说明：游戏内定价过的价格会写入当前生效的价格表（默认 `Zomboid/Lua/SimpleShopPrices.ini`，切成「仅本存档」时写存档里的全局 ModData `SimpleShopPrices`），优先级高于 `SimpleShopItems.lua`。修改 `SimpleShopItems.lua` 只影响"首次加载"和"恢复默认"时的初始清单。
 
+> `SimpleShopBasic.lua` 里的 `initialMoney` / `zombieKillAmount` 仅作为沙箱选项缺失时的兜底（兼容旧版与旧配置模组），正常调参请用沙箱选项。生效优先级：**沙箱选项 > `SimpleShopBasic` 旧字段 > 内置默认（0 / 10）**。
+
 ## 文件结构
 
 ```
@@ -162,7 +163,7 @@ SimpleShop/
 │               ├── mod.info              -- 模组信息文件
 │               ├── shop.png              -- 模组海报
 │               └── media/
-│                   ├── sandbox-options.txt -- 沙箱选项定义（显示管理按钮 / 允许配置商品）
+│                   ├── sandbox-options.txt -- 沙箱选项定义（初始金钱 / 击杀奖励 / 允许配置商品 / 价格表范围）
 │                   ├── ui/menu_icon.png  -- 菜单图标
 │                   └── lua/
 │                       ├── client/
@@ -175,7 +176,7 @@ SimpleShop/
 │                       ├── server/
 │                       │   └── SimpleShopServer.lua      -- 服务端权威逻辑（购买/定价）
 │                       └── shared/
-│                           ├── SimpleShopBasic.lua       -- 基础设置
+│                           ├── SimpleShopBasic.lua       -- 基础设置（沙箱选项读取 + 旧字段兜底）
 │                           ├── SimpleShopItems.lua       -- 默认物品清单
 │                           ├── SimpleShopDataManager.lua -- 商品数据/筛选/排序
 │                           ├── SimpleShopConfigFile.lua  -- 全局配置文件读写（Zomboid/Lua/ 下的 ini）
@@ -224,8 +225,9 @@ SimpleShop/
    - 购买金额按价格表重算，拒绝客户端伪造金额
    - 定价与调序操作的权限校验（仅管理员可改价/调序）
 
-5. **配置系统** (`SimpleShopBasic.lua` / `SimpleShopItems.lua`)
-   - 基础设置
+5. **配置系统** (`sandbox-options.txt` / `SimpleShopBasic.lua` / `SimpleShopItems.lua`)
+   - 世界级规则在沙箱选项里配置：初始金钱 `InitialMoney`（默认 0）、击杀奖励 `KillReward`（默认 10）、允许配置商品、价格表范围
+   - `SimpleShopBasic.getInitialMoney()` / `getKillReward()` 给出当前生效值（沙箱 > 旧字段 > 内置默认）
    - 默认物品清单（仅在首次创建价格表或"恢复默认"时使用）
 
 ## API接口
@@ -257,3 +259,10 @@ SimpleShop.HasEnoughMoney(amount, playerIndex)
 检查指定玩家是否有足够金额。
 
 这些方法可用于实现任务奖励、自定义商店等需要修改玩家金钱的功能。
+
+**关于沙箱化配置的兼容性**：初始金钱与击杀奖励改为沙箱选项后，以上 API 的参数、返回值、数据字段（`ModData.playerMoney`）与调用方式均**不变**，其他模组无需改动。受影响的只有"新角色起始金额"的默认值（100 → 沙箱 `InitialMoney`，默认 0）与"击杀奖励来源"（`SimpleShopBasic` → 沙箱 `KillReward`，默认值仍是 10）。读取当前生效值可用：
+
+```lua
+SimpleShopBasic.getInitialMoney() -- 新角色初始金钱（沙箱 InitialMoney，默认 0）
+SimpleShopBasic.getKillReward()   -- 每杀一只僵尸的奖励（沙箱 KillReward，默认 10）
+```

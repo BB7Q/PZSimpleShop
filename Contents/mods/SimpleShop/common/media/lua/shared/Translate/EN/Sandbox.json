@@ -1,5 +1,9 @@
 {
     "Sandbox_SimpleShop": "SimpleShop",
+    "Sandbox_SimpleShopInitialMoney": "Starting money for new characters",
+    "Sandbox_SimpleShopInitialMoney_tooltip": "Money granted when a new character is created (default 0).\nOnly affects characters that have no money record yet; existing characters and older saves keep their balance.\nResolved by the local server in single player / host mode; in multiplayer the server is authoritative and syncs the value to clients.",
+    "Sandbox_SimpleShopKillReward": "Kill reward",
+    "Sandbox_SimpleShopKillReward_tooltip": "Money granted per zombie kill (default 10).\nSet to 0 to disable kill rewards.\nPaid from the character's own kill counter, so melee, firearms, vehicles and every other kill type count; kills made before loading the save / joining the server are not paid retroactively.",
     "Sandbox_SimpleShopAllowManageItems": "Allow item configuration",
     "Sandbox_SimpleShopAllowManageItems_tooltip": "Allow players with management rights to change item prices and display order; when off, the button, the key bind and multiplayer price requests are all refused (off by default). Each player must also enable \"Show Manage Items button\" in Options -> Mods -> SimpleShop",
     "Sandbox_SimpleShopConfigScope": "Price table scope",

@@ -15,7 +15,7 @@ description=    [*] Right-click menu - Optional (off by default): right-click in
 description=    [*] Configurable key binds - Bind keys for opening the shop and for item management in Options -> Mods -> SimpleShop; nothing is bound by default
 description=    [*] Sandbox options - Allow item configuration is a world-level sandbox setting (off by default); each player can additionally toggle the "Manage Items" button in Options -> Mods -> SimpleShop
 description=    [*] Multi-language support - Built-in Chinese and English interface
-description=    [*] Configurable - Support for custom initial money and item prices
+description=    [*] Configurable - Starting money and kill reward are sandbox options (default 0 / 10); item prices are set in-game
 description=[/list]
 description=
 description=[h2]How to Use[/h2]
@@ -27,13 +27,13 @@ description=    [*] Search items: Use the search box to quickly find items you n
 description=    [*] Category filter: Use the dropdown menu to browse items by category
 description=    [*] Sort items: Use the sort dropdown to switch between Shop order (default, configured by admins) / Name A→Z / Name Z→A / Price low→high / Price high→low; sorting stacks with search and category filters
 description=    [*] Reorder items: In the pricing window select a listed item and press "Top / Up / Down / Bottom"; new listings are appended to the end and delisted items are removed from the order
-description=    [*] Earn money: Get money rewards by killing zombies, new characters start with initial funds
+description=    [*] Earn money: Get money rewards by killing zombies (10 per kill by default); a new character starts with the amount set by the sandbox option (0 by default)
 description=[/list]
 description=
 description=[h2]Configuration Options[/h2]
 description=[list]
-description=    [*] Initial money: 100 (can be modified in SimpleShopBasic.lua)
-description=    [*] Kill reward: Get 10 money for each zombie killed
+description=    [*] Sandbox options (world settings page "SimpleShop"): starting money for new characters (default 0), kill reward (default 10; 0 disables), allow item configuration and price table scope
+description=    [*] Server-authoritative in multiplayer and synced to clients; starting money only affects characters without a money record yet
 description=    [*] Purchasable items: Including basic survival supplies, medical supplies, tools, weapons, building materials, and ammunition
 description=    [*] Mod options: floating balance panel (on), "Open Shop" right-click entry (off), Manage Items button (off) and key binds are all configured in Options -> Mods -> SimpleShop
 description=[/list]
@@ -41,13 +41,9 @@ description=
 description=[h3]Configuration Files Location[/h3]
 description=Mod configuration files are located at: [code]SimpleShop/common/media/lua/shared/[/code]
 description=
-description=[b]Basic Configuration (SimpleShopBasic.lua)[/b]
-description=[code]
-description=SimpleShopBasic = {
-description=    ["initialMoney"] = 100, -- Initial money for new characters
-description=    ["zombieKillAmount"] = 10, -- Money earned per zombie kill
-description=}
-description=[/code]
+description=[b]Sandbox options (world settings)[/b]
+description=Starting money for new characters, kill reward, allow item configuration and price table scope are configured on the "SimpleShop" page of the sandbox options. In multiplayer the server is authoritative and syncs them to clients; starting money only affects characters without a money record yet.
+description=SimpleShopBasic.lua keeps the same fields only as a fallback (used when the sandbox option is missing), so tune the sandbox options instead.
 description=
 description=[b]Item Price Configuration (SimpleShopItems.lua)[/b]
 description=[code]
@@ -101,7 +97,6 @@ description=└── common/
 description=    └── media/
 description=        └── lua/
 description=            └── shared/
-description=                ├── SimpleShopBasic.lua
 description=                └── SimpleShopItems.lua
 description=[/code]
 description=
@@ -116,14 +111,8 @@ description=Custom configuration for SimpleShop
 description=poster=poster.png
 description=[/code]
 description=
-description=4. Override needed values in your configuration files:
+description=4. Override the default item prices (money settings live in the world's sandbox options):
 description=[code]
-description=-- SimpleShopBasic.lua
-description=SimpleShopBasic = {
-description=    ["initialMoney"] = 100, -- Initial money
-description=    ["zombieKillAmount"] = 10, -- Money earned per zombie kill
-description=}
-description=
 description=-- SimpleShopItems.lua
 description=SimpleShopItems = {
 description=    -- Your custom item prices

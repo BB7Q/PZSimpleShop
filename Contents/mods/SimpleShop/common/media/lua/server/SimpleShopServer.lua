@@ -8,10 +8,44 @@ require "SimpleShopItemStore"
 SimpleShopServer = {}
 SimpleShopServer.Commands = {}
 
--- 调试：检查配置文件是否加载
+-- **************************************************************************************
+-- 解析当前生效的金额设置：沙箱选项 > SimpleShopBasic 旧字段 > 内置默认
+--   沙箱选项定义见 common/media/sandbox-options.txt（世界级，联机时服务端权威）
+--   旧配置模组可能整体覆盖 SimpleShopBasic（连辅助函数一起丢掉），这里直接读沙箱 + 兜底
+-- **************************************************************************************
+local function getSandboxNumber(name)
+    if type(SandboxVars) ~= "table" then return nil end
+    local page = SandboxVars["SimpleShop"]
+    if type(page) ~= "table" then return nil end
+    return tonumber(page[name])
+end
+
+local function resolveSetting(sandboxName, getterName, fieldName, defaultValue)
+    local value = getSandboxNumber(sandboxName)
+    if value == nil and type(SimpleShopBasic) == "table" and type(SimpleShopBasic[getterName]) == "function" then
+        return SimpleShopBasic[getterName]()
+    end
+    if value == nil and type(SimpleShopBasic) == "table" then
+        value = tonumber(SimpleShopBasic[fieldName])
+    end
+    if value == nil then return defaultValue end
+    return math.max(0, math.floor(value))
+end
+
+-- 新角色初始金钱（沙箱 SimpleShop.InitialMoney，默认 0）
+SimpleShopServer.GetInitialMoney = function()
+    return resolveSetting("InitialMoney", "getInitialMoney", "initialMoney", 0)
+end
+
+-- 每击杀一只僵尸的奖励（沙箱 SimpleShop.KillReward，默认 10）
+SimpleShopServer.GetKillReward = function()
+    return resolveSetting("KillReward", "getKillReward", "zombieKillAmount", 10)
+end
+
+-- 调试：检查生效设置
 print("[SimpleShop] Server module loading...")
-print("[SimpleShop] SimpleShopBasic.initialMoney = " .. tostring(SimpleShopBasic.initialMoney))
-print("[SimpleShop] SimpleShopBasic.zombieKillAmount = " .. tostring(SimpleShopBasic.zombieKillAmount))
+print("[SimpleShop] Initial money for new characters = " .. tostring(SimpleShopServer.GetInitialMoney()))
+print("[SimpleShop] Kill reward per zombie = " .. tostring(SimpleShopServer.GetKillReward()))
 
 -- **************************************************************************************
 -- 初始化玩家金钱数据（服务端）
@@ -22,9 +56,9 @@ SimpleShopServer.InitPlayerMoney = function(playerObj)
     
     local modData = playerObj:getModData()
     
-    -- 如果玩家还没有金钱数据，从配置文件初始化
+    -- 如果玩家还没有金钱数据，按沙箱选项初始化
     if not modData.playerMoney then
-        local initialMoney = SimpleShopBasic and SimpleShopBasic.initialMoney or 100
+        local initialMoney = SimpleShopServer.GetInitialMoney()
         modData.playerMoney = initialMoney
         print("[SimpleShop] Initialized player money for " .. tostring(playerObj:getUsername()) .. ": " .. modData.playerMoney)
     else
@@ -80,7 +114,7 @@ SimpleShopServer.CheckKillRewards = function()
         return
     end
 
-    local rewardPerKill = math.floor(tonumber(SimpleShopBasic and SimpleShopBasic.zombieKillAmount) or 10)
+    local rewardPerKill = SimpleShopServer.GetKillReward()
 
     -- 单个玩家结算：只处理"比上次结算时多出来的击杀数"，重复调用不会有副作用
     local function checkPlayer(playerObj)

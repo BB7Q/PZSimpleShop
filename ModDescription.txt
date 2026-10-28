@@ -12,7 +12,7 @@ SimpleShop 是一个简洁的购物 mod，参考 CoxisShop 简化而来，专注
     [*] 悬浮余额 - 画面右侧常驻的余额面板（左侧购物图标），点击直接开/关商店，按住可拖到任意位置
     [*] 打开方式 - 点击画面右侧的悬浮余额面板，或在 选项 → 模组 → 简易商店 里绑定快捷键 / 开启右键菜单
     [*] 权限控制 - 沙箱选项决定是否允许配置商品，玩家可自行决定是否显示"管理商品"按钮
-    [*] 可配置 - 初始金钱、击杀奖励、默认物品清单；内置中英文界面
+    [*] 可配置 - 初始金钱、击杀奖励在沙箱选项里调（默认 0 / 10），默认物品清单；内置中英文界面
 [/list]
 
 [h2]如何使用[/h2]
@@ -21,7 +21,7 @@ SimpleShop 是一个简洁的购物 mod，参考 CoxisShop 简化而来，专注
     [*] 悬浮余额面板：默认在画面右侧中间，左键点一下开/关商店，按住拖动可换位置（位置随角色保存）
     [*] 购买：点选物品后点"购买"
     [*] 筛选/排序：分类下拉 + 搜索框 + 排序下拉（默认"商店顺序"，可切名称/价格），三者可叠加
-    [*] 获得金钱：击杀僵尸有奖励，新角色有初始资金，死亡不丢钱
+    [*] 获得金钱：击杀僵尸有奖励（默认 10/只），新角色初始金钱由沙箱选项决定（默认 0），死亡不丢钱
     [*] 商品定价：先在沙箱选项开启「简易商店 → 允许配置商品」，并在 选项 → 模组 → 简易商店 勾选「显示管理按钮」（或用快捷键），再点商店底部"管理商品"
 [/list]
 
@@ -37,21 +37,13 @@ SimpleShop 是一个简洁的购物 mod，参考 CoxisShop 简化而来，专注
 
 [h2]配置选项[/h2]
 [list]
-    [*] 初始金钱 100、击杀奖励 10（见 SimpleShopBasic.lua）
-    [*] 沙箱选项 - 允许配置商品（默认关闭；联机时为服务端权威校验）、价格表范围（整个游戏生效/仅本存档，默认整个游戏生效）
+    [*] 沙箱选项 - 新角色初始金钱（默认 0）、击杀奖励（默认 10；0 = 关闭）、允许配置商品（默认关闭；联机时为服务端权威校验）、价格表范围（整个游戏生效/仅本存档，默认整个游戏生效）
     [*] 模组选项 - 悬浮余额面板（默认开启）、右键菜单（默认关闭）、显示「管理商品」按钮（默认关闭）、打开商店/管理商品快捷键（默认不绑定），改完立即生效
     [*] 默认商品清单 - SimpleShopItems.lua（仅首次建表或"恢复默认"时生效）
 [/list]
 
-配置文件位于：[code]SimpleShop/common/media/lua/shared/[/code]
-
-[b]基础配置 (SimpleShopBasic.lua)[/b]
-[code]
-SimpleShopBasic = {
-    \["initialMoney"\] = 100, -- 新角色初始金钱
-    \["zombieKillAmount"\] = 10, -- 每击杀一个僵尸获得的金钱
-}
-[/code]
+沙箱选项在「沙箱选项 → 简易商店」页；联机由服务端权威并同步给客户端。初始金钱只影响还没有金钱记录的新角色，老存档余额不变。
+[color=#999999]SimpleShopBasic.lua 的同名字段已改为兜底（仅沙箱选项缺失时使用），正常调参请用沙箱选项。[/color]
 
 [b]默认物品清单 (SimpleShopItems.lua)[/b]
 [color=#999999]提示：游戏内定价后以存档中的价格表为准；本文件仅在首次创建价格表或点击"恢复默认"时使用。[/color]
@@ -75,6 +67,7 @@ SimpleShop.AddPlayerMoney(amount, playerIndex)    -- 加钱（amount > 0）
 SimpleShop.RemovePlayerMoney(amount, playerIndex) -- 扣钱（余额需足够）
 SimpleShop.HasEnoughMoney(amount, playerIndex)    -- 是否够
 [/code]
+四个接口的签名、返回值与 ModData 字段均不变；初始金钱/击杀奖励只是改由沙箱选项提供，读取当前生效值可用 SimpleShopBasic.getInitialMoney() / getKillReward()。
 
 [h3]价格表[/h3]
 [code]
@@ -103,7 +96,7 @@ SimpleShop is a lightweight shopping mod based on CoxisShop, focused on buying i
     [*] Floating balance - A small balance panel on the right side of the screen (shopping cart icon); click to open the shop, drag it anywhere
     [*] How to open - Click the floating balance panel, or bind a key / enable the right-click menu in Options -> Mods -> SimpleShop
     [*] Permission control - A sandbox option decides whether item configuration is allowed; each player chooses whether to show the "Manage Items" button
-    [*] Configurable - Initial money, kill reward, default item list; Chinese and English built in
+    [*] Configurable - Starting money and kill reward are sandbox options (default 0 / 10), plus the default item list; Chinese and English built in
 [/list]
 
 [h2]How to Use[/h2]
@@ -112,7 +105,7 @@ SimpleShop is a lightweight shopping mod based on CoxisShop, focused on buying i
     [*] Floating balance panel: sits at the right side of the screen by default; click it to open/close the shop, drag it to move (the position is saved with your character)
     [*] Purchase: select an item and click "Buy"
     [*] Filter / sort: category dropdown + search box + sort dropdown (defaults to "Shop order", switchable to name/price); they stack
-    [*] Earn money: kill zombies for rewards, new characters start with funds, death keeps your money
+    [*] Earn money: kill zombies for rewards (10 per kill by default); the starting balance of a new character comes from the sandbox option (0 by default); death keeps your money
     [*] Pricing: enable the sandbox option "SimpleShop -> Allow item configuration", tick "Show Manage Items button" in Options -> Mods -> SimpleShop (or use the key bind), then click "Manage Items" at the bottom of the shop
 [/list]
 
@@ -128,21 +121,13 @@ SimpleShop is a lightweight shopping mod based on CoxisShop, focused on buying i
 
 [h2]Configuration Options[/h2]
 [list]
-    [*] Initial money 100 and kill reward 10 (see SimpleShopBasic.lua)
-    [*] Sandbox options - Allow item configuration (off by default; server-authoritative in multiplayer) and Price table scope (whole game / this save only, whole game by default)
+    [*] Sandbox options - Starting money for new characters (0 by default), kill reward (10 by default; 0 disables), Allow item configuration (off by default; server-authoritative in multiplayer) and Price table scope (whole game / this save only, whole game by default)
     [*] Mod options - Floating balance panel (on), right-click menu (off), Show "Manage Items" button (off), key binds for opening the shop / managing items (unbound); applied immediately
     [*] Default item list - SimpleShopItems.lua (used only when the table is first created or "Reset Default" is clicked)
 [/list]
 
-Configuration files are located at: [code]SimpleShop/common/media/lua/shared/[/code]
-
-[b]Basic Configuration (SimpleShopBasic.lua)[/b]
-[code]
-SimpleShopBasic = {
-    \["initialMoney"\] = 100, -- Initial money for new characters
-    \["zombieKillAmount"\] = 10, -- Money earned per zombie kill
-}
-[/code]
+The sandbox options live on the "SimpleShop" page of the world settings; in multiplayer the server is authoritative and syncs them to clients. Starting money only affects characters without a money record yet, older saves keep their balance.
+[color=#999999]The same fields in SimpleShopBasic.lua are now a fallback (used only when the sandbox option is missing); tune via sandbox options instead.[/color]
 
 [b]Default Item List (SimpleShopItems.lua)[/b]
 [color=#999999]Note: after in-game pricing is used, the price table in the world save takes priority; this file is only used when the table is first created or "Reset Default" is clicked.[/color]
@@ -166,6 +151,7 @@ SimpleShop.AddPlayerMoney(amount, playerIndex)    -- add (amount > 0)
 SimpleShop.RemovePlayerMoney(amount, playerIndex) -- remove (needs enough balance)
 SimpleShop.HasEnoughMoney(amount, playerIndex)    -- check
 [/code]
+Signatures, return values and the ModData fields are unchanged; starting money and kill reward are now supplied by sandbox options. Use SimpleShopBasic.getInitialMoney() / getKillReward() to read the effective values.
 
 [h3]Price Table[/h3]
 [code]

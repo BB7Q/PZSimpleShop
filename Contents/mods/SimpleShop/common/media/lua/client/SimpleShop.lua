@@ -38,8 +38,8 @@ SimpleShop.InitPlayer = function()
 		-- 当前玩家死亡次数大于0则表示本次初始化是因为玩家死亡才进行的初始化，那么继承死亡前的金币数
 		SimpleShop.modData[playerIndex].playerMoney = SimpleShop.playerMoneyTemp[playerIndex];
 	else
-		-- 刚创建角色的首次初始化
-		SimpleShop.modData[playerIndex].playerMoney = SimpleShop.modData[playerIndex].playerMoney or SimpleShop.settings["BASIC"]["initialMoney"];
+		-- 刚创建角色的首次初始化（沙箱选项 SimpleShop.InitialMoney，默认 0）
+		SimpleShop.modData[playerIndex].playerMoney = SimpleShop.modData[playerIndex].playerMoney or SimpleShop.getInitialMoney();
 	end
 end
 
@@ -240,6 +240,23 @@ SimpleShop.getSandboxOption = function(name, default)
 		return SimpleShopItemStore.getSandboxOption(name, default);
 	end
 	return default;
+end
+
+-- **************************************************************************************
+-- 新角色初始金钱（沙箱选项 SimpleShop.InitialMoney，默认 0）
+--   旧配置模组可能整体覆盖 SimpleShopBasic，辅助函数不在时退回旧字段
+-- **************************************************************************************
+SimpleShop.getInitialMoney = function()
+	if type(SimpleShopBasic) == "table" and type(SimpleShopBasic.getInitialMoney) == "function" then
+		return SimpleShopBasic.getInitialMoney();
+	end
+	local value = SimpleShop.getSandboxOption("InitialMoney", nil);
+	if value == nil and type(SimpleShopBasic) == "table" then
+		value = tonumber(SimpleShopBasic.initialMoney);
+	end
+	value = tonumber(value);
+	if value == nil then return 0 end
+	return math.max(0, math.floor(value));
 end
 
 -- **************************************************************************************

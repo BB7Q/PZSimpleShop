@@ -1,5 +1,9 @@
 {
     "Sandbox_SimpleShop": "简易商店",
+    "Sandbox_SimpleShopInitialMoney": "新角色初始金钱",
+    "Sandbox_SimpleShopInitialMoney_tooltip": "新角色创建时发放的金钱，默认 0。\n只影响还没有金钱记录的角色：已有角色与老存档的余额不变。\n单人/主机由本地服务端结算；联机以服务端为准并自动同步给客户端。",
+    "Sandbox_SimpleShopKillReward": "击杀奖励",
+    "Sandbox_SimpleShopKillReward_tooltip": "每击杀一只僵尸获得的金钱，默认 10。\n设为 0 表示关闭击杀奖励。\n按角色自己的击杀计数增量结算，近战、枪械、车辆等所有击杀方式都算；读档/加入服务器前的历史击杀不补发。",
     "Sandbox_SimpleShopAllowManageItems": "允许配置商品",
     "Sandbox_SimpleShopAllowManageItems_tooltip": "允许有管理权限的玩家调整商品价格与陈列顺序；关闭后按钮、快捷键与联机改价请求全部拒绝（默认关闭）。玩家本机还需在 选项 → 模组 → 简易商店 里勾选「显示管理按钮」",
     "Sandbox_SimpleShopConfigScope": "价格表范围",
